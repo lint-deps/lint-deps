@@ -7,10 +7,11 @@
 
 'use strict';
 
+var _ = require('lodash');
+var config = require('config-file');
 var file = require('fs-utils');
 var strip = require('strip-comments');
-var _ = require('lodash');
-var pkg = require('./package.json');
+var pkg = config.load();
 
 
 /**
@@ -58,7 +59,7 @@ var expandFiles = function(src, fn, options) {
     // Filter out node_modules from result set
     return !~filepath.search('node_modules');
   }).map(function(filepath) {
-
+    console.log(filepath);
     // remove banners from files before searching for
     // require statements, so that "unused" require
     // statements aren't included in the result.
