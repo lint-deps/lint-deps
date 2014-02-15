@@ -1,0 +1,119 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var chalk = require('chalk');
+var inquirer = require('inquirer');
+var _ = require('lodash');
+var deps = require('../');
+
+var allDeps = deps.allDeps;
+var allReq = deps.allReq;
+
+var bold      = chalk.bold;
+var highlight = chalk.bold.bgBlack;
+var info      = chalk.cyan;
+var success   = chalk.green;
+
+/**
+ * Diffs
+ */
+
+var notRequired = _.difference(allDeps, allReq);
+var missingDeps = _.difference(allReq, allDeps);
+
+function repeat(pattern, count) {
+  if (count < 1) {
+    return '';
+  }
+  var result = '';
+  while (count > 0) {
+    if (count & 1) {
+      result += pattern;
+    }
+    count >>= 1;
+    pattern += pattern;
+  }
+  return result;
+}
+
+function createArray(str, len) {
+  var arr = [];
+  var i = 1;
+  while(arr.length < len) {
+    arr[i] = repeat(str, i);
+    i++;
+  }
+  arr.shift();
+  return arr;
+}
+
+/**
+ * Prompts
+ */
+
+if(notRequired.length > 0) {
+  console.log(info(notRequired.length) + ' unused package(s) found: "' + bold(notRequired.join('", "') + '"'));
+  console.log(chalk.gray(' (this tool doesn\'t remove dependencies, you\'ll have to do that manually)\n'));
+}
+
+if(missingDeps.length === 0) {
+  console.log(success('All packages appear to be listed. OK!'));
+} else {
+  console.log(info(missingDeps.length) + ' unlisted package(s) found ' + chalk.gray('(e.g. not listed in package.json): "') + highlight(missingDeps.join('", "') + '"\n'));
+
+  inquirer.prompt([
+    {
+      type: "confirm",
+      name: 'install',
+      message: bold('Want to install (and add to package.json)?'),
+      default: false
+    },
+    {
+      type: "checkbox",
+      name: "deptype",
+      message: bold("Where?"),
+      choices: [
+        {
+          name: "dependencies",
+          checked: true
+        },
+        {
+          name: "devDependencies"
+        },
+        {
+          name: "peerDependencies"
+        }
+      ],
+      when: function( answers ) {
+        return answers.install === true;
+      }
+    }
+  ], function (answers) {
+    if(answers.install === true) {
+      var BottomBar = inquirer.ui.BottomBar;
+      var cmdify = require('cmdify');
+      var loader = ' ' + createArray(chalk.bgWhite(' '), 100);
+
+      var i = 4;
+      var ui = new BottomBar({ bottomBar: loader[i % 4] });
+
+      setInterval(function() {
+        ui.updateBottomBar( loader[i++ % 4] );
+      }, 300 );
+
+      var spawn = require('child_process').spawn;
+      var cmd = spawn(cmdify('npm'), _.union(['i'], missingDeps, ['--save']), { stdio: 'pipe' });
+
+      cmd.stdout.pipe( ui.log );
+      cmd.on( 'close', function() {
+        console.log('\n');
+        ui.updateBottomBar(success('Installed, and added to package.json. All done!\n'));
+        console.log('\n');
+        process.exit();
+      });
+    } else {
+      console.log(success('\nGot it. All is good.'));
+    }
+  });
+}
