@@ -84,7 +84,7 @@ var expandFiles = function(src, fn, options) {
 exports.buildResult = function(src, exclude) {
   var arr = [];
 
-  arr.push(nodeBuiltins);
+  arr.push(exclusions);
   arr.push(exclude || []);
   arr.push(expandFiles(src, findRequires));
 
