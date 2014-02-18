@@ -1,4 +1,4 @@
-# lint-deps [![NPM version](https://badge.fury.io/lint-deps.png)](http://badge.fury.io/lint-deps)
+# lint-deps [![NPM version](https://badge.fury.io/js/lint-deps.png)](http://badge.fury.io/js/lint-deps)
 
 > Command-line tool to check for dependencies that are not listed in package.json, and optionally add them.
 
