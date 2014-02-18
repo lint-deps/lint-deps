@@ -70,48 +70,25 @@ if(missingDeps.length === 0) {
       default: false
     },
     {
-      type: "checkbox",
-      name: "deptype",
-      message: bold("Where?"),
-      choices: [
-        {
-          name: "dependencies",
-          checked: true
-        },
-        {
-          name: "devDependencies"
-        },
-        {
-          name: "peerDependencies"
-        }
-      ],
+      type: "input",
+      name: "where",
+      message: "Where do you want to add them? (-d is deps, -e is devDeps)",
+      default: "-d",
       when: function( answers ) {
         return answers.install === true;
       }
     }
   ], function (answers) {
     if(answers.install === true) {
-      var BottomBar = inquirer.ui.BottomBar;
-      var cmdify = require('cmdify');
-      var loader = ' ' + createArray(chalk.bgWhite(' '), 100);
+      var saveTo = '--save';
+      console.log(answers.where);
+      if(answers.where === '-e') {
+        saveTo = '--save-dev';
+      }
 
-      var i = 4;
-      var ui = new BottomBar({ bottomBar: loader[i % 4] });
-
-      setInterval(function() {
-        ui.updateBottomBar( loader[i++ % 4] );
-      }, 300 );
-
-      var spawn = require('child_process').spawn;
-      var cmd = spawn(cmdify('npm'), _.union(['i'], missingDeps, ['--save']), { stdio: 'pipe' });
-
-      cmd.stdout.pipe( ui.log );
-      cmd.on( 'close', function() {
-        console.log('\n');
-        ui.updateBottomBar(success('Installed, and added to package.json. All done!\n'));
-        console.log('\n');
-        process.exit();
-      });
+      var shell = require('shelljs');
+      shell.exec('npm i ' + _.union([], missingDeps, [saveTo]).join(' '));
+      console.log(success('\nDone.'));
     } else {
       console.log(success('\nGot it. All is good.'));
     }

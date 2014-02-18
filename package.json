@@ -1,7 +1,7 @@
 {
   "name": "lint-deps",
   "description": "Command-line tool to check for dependencies that are not listed in package.json, and optionally add them. Also tells you when packages that aren't used anywhere are listed in package.json.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "main": "index.js",
   "homepage": "https://github.com/jonschlinkert/lint-deps",
   "author": {
@@ -25,13 +25,13 @@
     "deps": "./bin/deps"
   },
   "dependencies": {
-    "chalk": "~0.4.0",
-    "cmdify": "0.0.4",
-    "fs-utils": "~0.3.6",
-    "inquirer": "~0.4.0",
-    "lodash": "~2.4.1",
     "strip-comments": "~0.1.6",
-    "config-file": "~0.1.4"
+    "chalk": "~0.4.0",
+    "shelljs": "~0.2.6",
+    "config-file": "~0.1.5",
+    "inquirer": "~0.4.0",
+    "fs-utils": "~0.3.6",
+    "lodash": "~2.4.1"
   },
   "keywords": [
     "deps",

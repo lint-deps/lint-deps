@@ -20,6 +20,20 @@ In the command line:
 deps
 ```
 
+If packages are missing, you'll see a prompt like this:
+
+![image](https://f.cloud.github.com/assets/383994/2192597/99266548-986a-11e3-98e2-5b6c4ff53719.png)
+
+If you type <kbd>y</kbd> + <kbd>enter</kbd>:
+
+![image](https://f.cloud.github.com/assets/383994/2192611/fa215b6e-986a-11e3-9eb9-f2b5875dbf82.png)
+
+If you want `dependencies`, just hit <kbd>enter</kbd>, or do `-e` for `devDependencies`:
+
+![image](https://f.cloud.github.com/assets/383994/2192633/6d5b7e3e-986b-11e3-9d91-26eb1b87cc3b.png)
+
+Done.
+
 ## Docs
 
 Currently this tool is very limited, does not have any options or settings, and is really experimental. Also, _`node_modules` is omitted from the search (and result set)_ and the following glob patterns are used to find files to scan:
