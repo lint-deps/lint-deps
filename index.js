@@ -11,8 +11,8 @@ var _ = require('lodash');
 var config = require('config-file');
 var file = require('fs-utils');
 var strip = require('strip-comments');
+var exclusions = require('./lib/exclusions');
 var pkg = config.load();
-
 
 /**
  * Find require() statements. Locally required
@@ -69,44 +69,7 @@ var expandFiles = function(src, fn, options) {
   return result;
 };
 
-/**
- * Strings to omit from the comparison
- * (this is just a start)
- *
- * @type  {Array}
- */
 
-var nodeBuiltins = [
-  'assert',
-  'buffer',
-  'child_process',
-  'cluster',
-  'crypto',
-  'dns',
-  'domain',
-  'event',
-  'fs',
-  'http',
-  'https',
-  'net',
-  'os',
-  'path',
-  'punycode',
-  'querystring',
-  'readline',
-  'repl',
-  'stream',
-  'string_decoder',
-  'tls',
-  'tty',
-  'dgram',
-  'udp4',
-  'udp6',
-  'url',
-  'util',
-  'vm',
-  'zlib'
-];
 
 /*
  * Flatten the array of require statements,
@@ -132,6 +95,6 @@ var deps = _.keys(pkg.dependencies);
 var devDeps = _.keys(pkg.devDependencies);
 var peerDeps = _.keys(pkg.peerDependencies);
 
-exports.allDeps = _.union([], deps, devDeps, peerDeps, nodeBuiltins);
+exports.allDeps = _.union([], deps, devDeps, peerDeps, exclusions);
 exports.allReq = exports.buildResult(['**/*.js', '!**/{tmp,temp}/**', 'bin/**']);
 
