@@ -23,14 +23,37 @@ var pkg = config.load();
  * @return  {Array}        Returns an array of required modules
  */
 
-var findRequires = function(src) {
+exports.findRequires = function(src) {
   var arr = [];
   // Basic require statement regex
   var re = /^.+require\('(.+)'\)/gm;
   if(src.match(re) !== null) {
     src.match(re).filter(function(ea) {
       ea = ea.replace(re, '$1');
-      if(ea.indexOf('./') === -1) {
+      if(!~ea.search('./')) {
+        arr.push(ea);
+      }
+    });
+  }
+  return _.flatten(arr);
+};
+
+/**
+ * Find grunt.loadTasks() and grunt.loadNpmTasks().
+ *
+ * @title findTasks
+ * @param   {String}  src  The string to search
+ * @return  {Array}        Returns an array of required modules
+ */
+
+exports.findTasks = function(src) {
+  var arr = [];
+  // Basic require statement regex
+  var re = /^.+(loadTasks|loadNpmTasks)\('(.+)'\);/gm;
+  if(src.match(re) !== null) {
+    src.match(re).filter(function(ea) {
+      ea = ea.replace(re, '$2');
+      if(!~ea.search('./') && !/^tasks$/.test(ea)) {
         arr.push(ea);
       }
     });
@@ -49,7 +72,7 @@ var findRequires = function(src) {
  * @return  {Array} Array of expanded filepaths
  */
 
-var expandFiles = function(src, fn, options) {
+exports.expandFiles = function(src, fn, options) {
   var opts = _.extend({nonull: true, filter: 'isFile'}, options);
   fn = fn || function(src) {
     return src;
@@ -86,7 +109,8 @@ exports.buildResult = function(src, exclude) {
 
   arr.push(exclusions);
   arr.push(exclude || []);
-  arr.push(expandFiles(src, findRequires));
+  arr.push(exports.expandFiles(src, exports.findRequires));
+  arr.push(exports.expandFiles(src, exports.findTasks));
 
   return _.unique(_.compact(_.flatten(arr)));
 };
@@ -96,5 +120,5 @@ var devDeps = _.keys(pkg.devDependencies);
 var peerDeps = _.keys(pkg.peerDependencies);
 
 exports.allDeps = _.union([], deps, devDeps, peerDeps, exclusions);
-exports.allReq = exports.buildResult(['**/*.js', '!**/{tmp,temp}/**', 'bin/**']);
+exports.allReq = exports.buildResult(['**/*.js', '!**/{tmp,temp,lint-deps-test}/**', 'bin/**']);
 
