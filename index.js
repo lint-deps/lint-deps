@@ -118,7 +118,8 @@ exports.buildResult = function(src, exclude) {
 var deps = _.keys(pkg.dependencies);
 var devDeps = _.keys(pkg.devDependencies);
 var peerDeps = _.keys(pkg.peerDependencies);
+var globOmissions = ['lint-deps-test', 'vendor', 'temp', 'tmp'];
 
 exports.allDeps = _.union([], deps, devDeps, peerDeps, exclusions);
-exports.allReq = exports.buildResult(['**/*.js', '!**/{tmp,temp,lint-deps-test}/**', 'bin/**']);
+exports.allReq = exports.buildResult(['**/*.js', 'bin/**', '!**/{' + globOmissions.join(',') + '}/**']);
 
