@@ -2,10 +2,8 @@
 
 process.title = 'lint-deps';
 
-const inquirer = require('inquirer');
 const wrap = require('word-wrap');
 const log = require('verbalize');
-const file = require('fs-utils');
 const _ = require('lodash');
 
 const spawn = require('../lib/spawn');
@@ -16,7 +14,6 @@ const utils = require('../lib/utils');
 
 var notRequired = _.difference(utils.deps, utils.requires);
 var missingDeps = _.difference(utils.requires, utils.deps);
-
 
 // Prompts
 function unusedPackages() {
@@ -38,7 +35,7 @@ if(notRequired.length > 0) {
 }
 
 if(missingDeps.length === 0) {
-  log.success('  All packages appear to be listed. OK!');
+  log.success('\n  All packages appear to be listed. OK!');
 } else {
   missingPackages();
   var prompts = [];
@@ -53,23 +50,12 @@ if(missingDeps.length === 0) {
   // Generate questions based on missing deps.
   prompts = prompts.concat(question(missingDeps));
 
-  function run(done) {
-    prompt(prompts, function (answers) {
-      if(answers.install === true) {
-
-        spawn([generateCommand(answers)]);
-
-      } else {
-        log.success('\n  Got it. All is good.');
-        process.exit(0);
-      }
-    }.bind(this));
-  }
-
-  run(function(err) {
-    if(err) {
-      log.error(err);
-      process.exit(1);
+  prompt(prompts, function (answers) {
+    if(answers.install === true) {
+      spawn([generateCommand(answers)]);
+    } else {
+      log.success('\n  Got it. All is good.');
+      process.exit(0);
     }
-  });
+  }.bind(this));
 }
