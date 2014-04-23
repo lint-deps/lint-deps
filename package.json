@@ -31,7 +31,9 @@
     "lodash": "~2.4.1",
     "plasma": "~0.2.5",
     "verbalize": "~0.1.2",
-    "strip-comments": "~0.1.6"
+    "word-wrap": "~0.1.2",
+    "strip-comments": "~0.1.6",
+    "globule": "~0.2.0"
   },
   "keywords": [
     "deps",

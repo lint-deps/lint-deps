@@ -5,19 +5,18 @@ process.title = 'lint-deps';
 const inquirer = require('inquirer');
 const wrap = require('word-wrap');
 const log = require('verbalize');
+const file = require('fs-utils');
 const _ = require('lodash');
 
-const exec = require('../lib/exec');
+const spawn = require('../lib/spawn');
 const question = require('../lib/question');
 const generateCommand = require('../lib/answers');
-const filter = require('../lib/filter');
 const prompt = require('../lib/prompt');
-const deps = require('../');
+const utils = require('../lib/utils');
 
-// Diffs
-var notRequired = _.difference(deps.allDeps, deps.allReq);
-var missingDeps = _.difference(deps.allReq, deps.allDeps);
-missingDeps = filter(missingDeps, ['handlebars-helper']);
+var notRequired = _.difference(utils.deps, utils.requires);
+var missingDeps = _.difference(utils.requires, utils.deps);
+
 
 // Prompts
 function unusedPackages() {
@@ -58,11 +57,7 @@ if(missingDeps.length === 0) {
     prompt(prompts, function (answers) {
       if(answers.install === true) {
 
-        // Generate answers based on missing deps.
-        exec(generateCommand(answers), function (err, cb) {
-          if (err) {cb(log.error(err));}
-          done();
-        }.bind(this));
+        spawn([generateCommand(answers)]);
 
       } else {
         log.success('\n  Got it. All is good.');
