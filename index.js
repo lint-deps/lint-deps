@@ -5,14 +5,13 @@
  * Licensed under the MIT license.
  */
 
-'use strict';
+const file = require('fs-utils');
+const strip = require('strip-comments');
+const plasma = require('plasma');
+const _ = require('lodash');
 
-var _ = require('lodash');
-var config = require('config-file');
-var file = require('fs-utils');
-var strip = require('strip-comments');
-var exclusions = require('./lib/exclusions');
-var pkg = config.load();
+const exclusions = require('./lib/exclusions');
+const pkg = plasma('package.json');
 
 /**
  * Find require() statements. Locally required
@@ -23,20 +22,34 @@ var pkg = config.load();
  * @return  {Array}        Returns an array of required modules
  */
 
-exports.findRequires = function(src) {
+exports.findRequires = function(str) {
   var arr = [];
   // Basic require statement regex
-  var re = /^.+require\('(.+)'\)/gm;
-  if(src.match(re) !== null) {
-    src.match(re).filter(function(ea) {
+  var re = /require\(['"]([^"']+)['"]\)/g;
+  if(re.test(str)) {
+    str.match(re).filter(function(ea) {
       ea = ea.replace(re, '$1');
-      if(!~ea.search('./')) {
+      if(!/\.\//.test(ea)) {
         arr.push(ea);
       }
     });
   }
   return _.flatten(arr);
 };
+
+// var req = file.expand('tmp/**/*.js').map(function(filepath) {
+//   var matches = [];
+//   var re = /require\(['"]([^"']+)['"]\)/g;
+//   var content = file.readFileSync(filepath);
+//   content.replace(re, function(whole, $1, index) {
+//     matches.push($1);
+//   });
+
+//   return {
+//     file: filepath,
+//     require: matches
+//   };
+// });
 
 /**
  * Find grunt.loadTasks() and grunt.loadNpmTasks().
@@ -46,14 +59,14 @@ exports.findRequires = function(src) {
  * @return  {Array}        Returns an array of required modules
  */
 
-exports.findTasks = function(src) {
+exports.findTasks = function(str) {
   var arr = [];
   // Basic require statement regex
-  var re = /^.+(loadTasks|loadNpmTasks)\('(.+)'\);/gm;
-  if(src.match(re) !== null) {
-    src.match(re).filter(function(ea) {
-      ea = ea.replace(re, '$2');
-      if(!~ea.search('./') && !/^tasks$/.test(ea)) {
+  var re = /loadTasks|loadNpmTask\(['"]([^"']+)['"]\)/gm;
+  if(re.test(str)) {
+    str.match(re).filter(function(ea) {
+      ea = ea.replace(re, '$1');
+      if(!/\.\//.test(ea) && !/^tasks$/.test(ea)) {
         arr.push(ea);
       }
     });
@@ -120,6 +133,6 @@ var devDeps = _.keys(pkg.devDependencies);
 var peerDeps = _.keys(pkg.peerDependencies);
 var globOmissions = ['lint-deps-test', 'vendor', 'temp', 'tmp'];
 
+// Aggregate dependencies from package.json, then add exclusion strings to this list
 exports.allDeps = _.union([], deps, devDeps, peerDeps, exclusions);
 exports.allReq = exports.buildResult(['**/*.js', 'bin/**', '!**/{' + globOmissions.join(',') + '}/**']);
-
