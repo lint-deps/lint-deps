@@ -2,7 +2,9 @@
 
 process.title = 'lint-deps';
 
+const cwd = require('cwd');
 const wrap = require('word-wrap');
+const argv = require('minimist')(process.argv.slice(2));
 const log = require('verbalize');
 const _ = require('lodash');
 
@@ -10,10 +12,35 @@ const spawn = require('../lib/spawn');
 const question = require('../lib/question');
 const generateCommand = require('../lib/answers');
 const prompt = require('../lib/prompt');
-const utils = require('../lib/utils');
+const lint = require('../lib/lint');
 
-var notRequired = _.difference(utils.deps, utils.requires);
-var missingDeps = _.difference(utils.requires, utils.deps);
+/**
+ * ## -e
+ *
+ * Comma-separated list of directories to exlude
+ *
+ * **Example**
+ *
+ * ```bash
+ * deps -e test
+ * ```
+ * or
+ *
+ * ```bash
+ * deps -e test,lib
+ * ```
+ */
+
+var exclusions = argv.e || argv.exclude || '';
+
+var requiredModules = function() {
+  var userOmissions = exclusions.split(',').filter(Boolean);
+  return lint.requiredModules(userOmissions);
+};
+
+// excludeDirs
+var notRequired = _.difference(lint.packageDeps(), requiredModules());
+var missingDeps = _.difference(requiredModules(), lint.packageDeps());
 
 // Prompts
 function unusedPackages() {
