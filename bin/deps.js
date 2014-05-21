@@ -8,10 +8,10 @@ const argv = require('minimist')(process.argv.slice(2));
 const log = require('verbalize');
 const _ = require('lodash');
 
-const spawn = require('../lib/spawn');
-const question = require('../lib/question');
 const generateCommand = require('../lib/answers');
+const question = require('../lib/question');
 const prompt = require('../lib/prompt');
+const spawn = require('../lib/spawn');
 const lint = require('../lib/lint');
 
 /**
@@ -33,6 +33,8 @@ const lint = require('../lib/lint');
 
 var exclusions = argv.e || argv.exclude || '';
 
+
+// Update the list of required modules, excluding omissions
 var requiredModules = function() {
   var userOmissions = exclusions.split(',').filter(Boolean);
   return lint.requiredModules(userOmissions);
@@ -41,6 +43,7 @@ var requiredModules = function() {
 // excludeDirs
 var notRequired = _.difference(lint.packageDeps(), requiredModules());
 var missingDeps = _.difference(requiredModules(), lint.packageDeps());
+
 
 // Prompts
 function unusedPackages() {
@@ -57,26 +60,35 @@ function missingPackages() {
   console.log();
 }
 
+// inform the user if package.json has deps
+// that don't appear to be necessary,
 if(notRequired.length > 0) {
   unusedPackages();
 }
 
 if(missingDeps.length === 0) {
+  // Inform the user if all packages appear to be installed
   log.success('\n  All packages appear to be listed. OK!');
 } else {
+
+  // If packages appear to be missing, inform the user, and
+  // ask them to choose where they would like them to be
+  // installed.
   missingPackages();
   var prompts = [];
 
   prompts.push({
     type: "confirm",
     name: 'install',
-    message: log.bold('Want to install and add to package.json?'),
+    message: log.bold('Want to install?'),
     default: false
   });
 
   // Generate questions based on missing deps.
   prompts = prompts.concat(question(missingDeps));
 
+  // Actually prompt the user, using questions
+  // generated based on missing dependencies.
   prompt(prompts, function (answers) {
     if(answers.install === true) {
       spawn([generateCommand(answers)]);
