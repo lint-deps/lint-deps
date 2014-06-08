@@ -80,7 +80,7 @@ if(missingDeps.length === 0) {
   prompts.push({
     type: "confirm",
     name: 'install',
-    message: log.bold('Want to install?'),
+    message: log.bold('Want to install? (you can choose which packages)'),
     default: false
   });
 
