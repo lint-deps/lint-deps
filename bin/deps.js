@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 
+'use strict';
+
 process.title = 'lint-deps';
 
-const cwd = require('cwd');
-const wrap = require('word-wrap');
-const argv = require('minimist')(process.argv.slice(2));
-const log = require('verbalize');
-const _ = require('lodash');
+var cwd = require('cwd');
+var wrap = require('word-wrap');
+var argv = require('minimist')(process.argv.slice(2));
+var log = require('verbalize');
+var _ = require('lodash');
 
-const generateCommand = require('../lib/answers');
-const question = require('../lib/question');
-const prompt = require('../lib/prompt');
-const spawn = require('../lib/spawn');
-const lint = require('../lib/lint');
+var generateCommand = require('../lib/answers');
+var question = require('../lib/question');
+var prompt = require('../lib/prompt');
+var spawn = require('../lib/spawn');
+var lint = require('../lib/lint');
 
 /**
  * ## -e
