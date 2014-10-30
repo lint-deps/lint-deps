@@ -33,24 +33,33 @@ var lint = require('../lib/lint');
  * ```
  */
 
-var exclusions = argv.e || argv.exclude || '';
+var dir = argv.d || argv.dir || '.';
+var exc = argv.e || argv.exclude || '';
+var pattern = argv.p || argv.pattern || '';
 
 
 // Update the list of required modules, excluding omissions
-var requiredModules = function() {
-  var userOmissions = exclusions.split(',').filter(Boolean);
-  return lint.requiredModules(userOmissions);
-};
+function requires(dir, omit) {
+  var exclusions = omit.split(',').filter(Boolean);
+  return lint.requires(dir).filter(function(ele) {
+    return exclusions.indexOf(ele) === -1;
+  });
+}
+
+// console.log(requires(dir, 'should'))
+
+var deps = lint.deps(pattern);
+var reqs = requires(dir, exc);
 
 // excludeDirs
-var notRequired = _.difference(lint.packageDeps(), requiredModules());
-var missingDeps = _.difference(requiredModules(), lint.packageDeps());
+var notused = _.difference(deps, reqs);
+var missing = _.difference(reqs, deps);
 
 
 // Prompts
 function unusedPackages() {
   console.log();
-  console.log(log.bold(wrap(notRequired.length + ' unused packages found: ')) + '\'' + notRequired.join('\', \'') + '\'');
+  console.log(log.bold(wrap(notused.length + ' unused packages found: ')) + '\'' + notused.join('\', \'') + '\'');
   console.log();
   console.log(log.gray(wrap('This tool doesn\'t remove dependencies, you\'ll have to do that manually.')));
   console.log('  ---');
@@ -58,17 +67,17 @@ function unusedPackages() {
 
 function missingPackages() {
   console.log();
-  log.error('  ' + missingDeps.length + ' missing packages found:', wrap('\'' + missingDeps.join('\', \'') + '\''));
+  log.error('  ' + missing.length + ' missing packages found:', wrap('\'' + missing.join('\', \'') + '\''));
   console.log();
 }
 
 // inform the user if package.json has deps
 // that don't appear to be necessary,
-if(notRequired.length > 0) {
+if(notused.length > 0) {
   unusedPackages();
 }
 
-if(missingDeps.length === 0) {
+if(missing.length === 0) {
   // Inform the user if all packages appear to be installed
   log.success('\n  All packages appear to be listed. OK!');
 } else {
@@ -87,7 +96,7 @@ if(missingDeps.length === 0) {
   });
 
   // Generate questions based on missing deps.
-  prompts = prompts.concat(question(missingDeps));
+  prompts = prompts.concat(question(missing));
 
   // Actually prompt the user, using questions
   // generated based on missing dependencies.
