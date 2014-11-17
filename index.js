@@ -41,21 +41,28 @@ function lookup(dir, omit) {
   return files.sync(dir || '.', [exclude, include]);
 }
 
-function read(dir, exclude) {
+function readFiles(dir, exclude) {
   return lookup(dir, exclude).map(function(fp) {
-    return fs.readFileSync(fp, 'utf8');
+    return {
+      path: fp.replace(/[\\\/]/g, '/'),
+      content: fs.readFileSync(fp, 'utf8')
+    };
   });
 }
-
 
 module.exports = function(dir, exclude) {
   var deps = dependencies(pkg)('*');
 
   // allow the user to define exclusions
-  var excl = excluded.builtins.concat(exclude || []);
+  var excl = excluded.builtins;
+  var report = {};
 
-  var existing = read(dir).reduce(function(acc, str, foo, bar) {
-    var results = findRequires(str);
+  var requires = _.reduce(readFiles(dir, exclude), function (acc, value) {
+    var results = findRequires(value.content);
+
+    var file = {};
+    file.requires = [];
+
     var len = results.length;
     var res = [];
     var i = 0;
@@ -65,13 +72,34 @@ module.exports = function(dir, exclude) {
       var name = ele.module;
 
       if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
+        ele.line = ele.line - 1;
+        file.requires.push(ele);
         res.push(name);
       }
     }
+
+    report[value.path] = file;
     return _.uniq(acc.concat(res));
   }, []).sort();
 
-  return existing.filter(function(req) {
+  var notused = _.difference(deps, requires);
+  var missing = requires.filter(function(req) {
     return deps.indexOf(req) === -1;
   });
+
+  var rpt = {};
+  rpt.missing = missing;
+  rpt.notused = notused;
+  rpt.files = report;
+
+  return {
+    // modules that are actually required
+    report: rpt,
+    // modules that are actually required
+    requires: requires,
+    // modules that are listed in package.json, but not used
+    notused: notused,
+    // modules that are actaully required, but missing from package.json
+    missing: missing
+  };
 };
