@@ -1,7 +1,7 @@
 {
   "name": "lint-deps",
-  "description": "Check for dependencies that aren't listed in package.json and asks if you want to add them. Also tells you if packages are listed in package.json but aren't used anywhere. Node.js command line tool and API.",
-  "version": "0.3.0",
+  "description": "CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.",
+  "version": "0.3.1",
   "main": "index.js",
   "homepage": "https://github.com/jonschlinkert/lint-deps",
   "author": {
@@ -23,14 +23,19 @@
   ],
   "preferGlobal": true,
   "bin": {
-    "deps": "./index.js"
+    "deps": "./bin/deps.js"
   },
   "dependencies": {
-    "files-filters": "^0.1.1",
-    "filter-files": "^0.2.4",
+    "files-filters": "^0.1.2",
+    "filter-files": "^0.4.0",
+    "inquirer": "^0.8.0",
     "lodash": "^2.4.1",
     "match-requires": "^0.1.1",
-    "multimatch": "^1.0.0"
+    "minimist": "^1.1.0",
+    "multimatch": "^1.0.0",
+    "verbalize": "^0.1.2",
+    "word-wrap": "^0.1.3",
+    "write": "^0.1.1"
   },
   "keywords": [
     "dep",
