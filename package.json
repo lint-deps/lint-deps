@@ -23,15 +23,17 @@
   ],
   "preferGlobal": true,
   "bin": {
-    "deps": "./bin/deps.js"
+    "deps": "./index.js"
   },
   "dependencies": {
     "cwd": "^0.3.3",
-    "files-filters": "^0.1.0",
-    "filter-files": "^0.2.4",
+    "files-filters": "^0.1.1",
+    "filter-files": "^0.3.0",
     "fs-utils": "^0.6.0",
     "inquirer": "^0.5.0",
+    "is-directory": "^0.2.3",
     "lodash": "^2.4.1",
+    "match-requires": "^0.1.1",
     "matchdep": "^0.3.0",
     "minimatch": "^1.0.0",
     "minimist": "^0.1.0",
@@ -51,9 +53,5 @@
     "missing",
     "require",
     "required"
-  ],
-  "devDependencies": {
-    "chai": "^1.9.1",
-    "verb": "~0.2.2"
-  }
+  ]
 }

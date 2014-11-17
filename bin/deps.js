@@ -7,14 +7,14 @@ process.title = 'lint-deps';
 var cwd = require('cwd');
 var wrap = require('word-wrap');
 var argv = require('minimist')(process.argv.slice(2));
+var inquirer = require('inquirer');
 var log = require('verbalize');
 var _ = require('lodash');
 
 var generateCommand = require('../lib/answers');
 var question = require('../lib/question');
-var prompt = require('../lib/prompt');
 var spawn = require('../lib/spawn');
-var lint = require('../lib/lint');
+var lint = require('..');
 
 /**
  * ## -e
@@ -100,7 +100,7 @@ if(missing.length === 0) {
 
   // Actually prompt the user, using questions
   // generated based on missing dependencies.
-  prompt(prompts, function (answers) {
+  inquirer.prompt(prompts, function (answers) {
     if(answers.install === true) {
       spawn([generateCommand(answers)]);
     } else {
