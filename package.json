@@ -26,23 +26,11 @@
     "deps": "./index.js"
   },
   "dependencies": {
-    "cwd": "^0.3.3",
     "files-filters": "^0.1.1",
-    "filter-files": "^0.3.0",
-    "fs-utils": "^0.6.0",
-    "inquirer": "^0.5.0",
-    "is-directory": "^0.2.3",
+    "filter-files": "^0.2.4",
     "lodash": "^2.4.1",
     "match-requires": "^0.1.1",
-    "matchdep": "^0.3.0",
-    "minimatch": "^1.0.0",
-    "minimist": "^0.1.0",
-    "multimatch": "^1.0.0",
-    "plasma": "^0.2.7",
-    "requires-regex": "^0.1.1",
-    "strip-comments": "^0.3.2",
-    "verbalize": "^0.1.2",
-    "word-wrap": "^0.1.2"
+    "multimatch": "^1.0.0"
   },
   "keywords": [
     "dep",

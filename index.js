@@ -2,24 +2,15 @@
 
 var fs = require('fs');
 var path = require('path');
-var cwd = require('cwd');
-var file = require('fs-utils');
 var mm = require('multimatch');
-var strip = require('strip-comments');
-var _ = require('lodash');
+var findRequires = require('match-requires');
 var filters = require('files-filters');
 var files = require('filter-files');
+var _ = require('lodash');
 var pkg = require(path.resolve(process.cwd(), 'package.json'));
 var excluded = require('./lib/exclusions');
-var utils = require('./lib/utils');
-var find = require('./lib/find')
 
-
-var exclude = filters.exclude(/node_modules|\.git|fixtures|actual/g);
-var include = filters.include(/(\.js$|bin.*)/);
-
-
-var types = ['dependencies', 'devDependencies'];
+var types = ['dependencies', 'devDependencies', 'peerDependencies'];
 
 function deps(pgk, type) {
   if (pkg.hasOwnProperty(type)) {
@@ -33,66 +24,54 @@ function depsKeys(pgk, type) {
   return o ? Object.keys(o) : [];
 }
 
-function alldeps(pgk) {
+function dependencies(pkg) {
   return function(pattern) {
     return types.reduce(function(acc, type) {
       var res = mm(depsKeys(pkg, type), pattern || '*');
       return acc.concat(res);
     }, []);
-  }
+  };
 }
 
-function lookup(dir, fn) {
-  var res = files.sync(dir || '.', [exclude, include]);
-  if (typeof fn === 'function') {
-    return res.filter(fn);
-  }
-  return res;
+function lookup(dir, omit) {
+  var excl = excluded.invalid.concat(omit || []);
+  var dirs = new RegExp(excl.join('|'), 'g');
+  var exclude = filters.exclude(dirs);
+  var include = filters.include(/(\.js$|bin.*)/);
+  return files.sync(dir || '.', [exclude, include]);
 }
 
-function listDeps(pkg, keys) {
-  return depsKeys(pkg).filter(function(key) {
-    return keys.indexOf(key) === -1;
+function read(dir, exclude) {
+  return lookup(dir, exclude).map(function(fp) {
+    return fs.readFileSync(fp, 'utf8');
   });
 }
 
-function read(dir, fn) {
-  return lookup(dir).map(function(fp) {
-    var str = fs.readFileSync(fp, 'utf8');
-    if (typeof fn === 'function') {
-      return fn(str);
-    }
-    return str;
-  });
-}
 
-function requires(filter) {
-  return function(dir) {
-    var files = read(dir);
-    return files.reduce(function(acc, fp) {
-      var res = find.requires(fp);
-      if (typeof filter === 'function') {
-        res = filter(res);
+module.exports = function(dir, exclude) {
+  var deps = dependencies(pkg)('*');
+
+  // allow the user to define exclusions
+  var excl = excluded.builtins.concat(exclude || []);
+
+  var existing = read(dir).reduce(function(acc, str, foo, bar) {
+    var results = findRequires(str);
+    var len = results.length;
+    var res = [];
+    var i = 0;
+
+    while (i < len) {
+      var ele = results[i++];
+      var name = ele.module;
+
+      if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
+        res.push(name);
       }
-      return _.uniq(acc.concat(res));
-    }, []).sort();
-  }
-}
-
-function filter(arr, exclude) {
-  exclude = exclude || excluded.builtins;
-  var len = arr.length;
-  var res = [];
-  var i = 0;
-  while (len--) {
-    var ele = arr[i++];
-    if (exclude.indexOf(ele) === -1 && !/\./.test(ele)) {
-      res.push(ele);
     }
-  }
-  return res;
-}
+    return _.uniq(acc.concat(res));
+  }, []).sort();
 
-
-exports.deps = alldeps(pkg);
-exports.requires = requires(filter);
+  return existing.filter(function(req) {
+    return deps.indexOf(req) === -1;
+  });
+};

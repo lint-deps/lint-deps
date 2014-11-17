@@ -29,12 +29,10 @@ function exclude(re, options, recurse) {
   };
 }
 
-var exclusions = ['node_modules', 'vendor', 'test/actual', 'test/fixtures'];
 
-module.exports = function(dirs) {
-  var excl = exclusions.concat(dirs).join('|');
-
-  var re = new RegExp(excl);
+module.exports = function(exclusions) {
+  var ex = exclusions || ['node_modules'];
+  var re = new RegExp(exclusions.join('|'));
   var filters = [exclude(re), matches('**')];
   var files = filterFiles.sync('./', true, filters);
 
