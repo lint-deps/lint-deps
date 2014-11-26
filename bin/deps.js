@@ -4,8 +4,10 @@
 
 process.title = 'lint-deps';
 
+var chalk = require('chalk');
 var wrap = require('word-wrap');
 var argv = require('minimist')(process.argv.slice(2));
+var symbol = require('log-symbols');
 var inquirer = require('inquirer');
 var write = require('write');
 var log = require('verbalize');
@@ -14,7 +16,6 @@ var question = require('../lib/question');
 var answers = require('../lib/answers');
 var spawn = require('../lib/spawn');
 var deps = require('..');
-
 
 var dir = argv.d || argv.dir || '.';
 var exc = argv.e || argv.exclude;
@@ -26,7 +27,6 @@ function requires(dir, exclude) {
 }
 
 var res = requires(dir, exc);
-
 if (report) {
   if (report === true) {
     report = 'report.json';
@@ -38,6 +38,26 @@ if (report) {
   log.success('\n  Report written to: ' + report);
   process.exit(0);
 }
+
+function format(results) {
+  console.log();
+  console.log('  Files scanned:');
+
+  var keys = Object.keys(results);
+  if (keys.length === 0) return '';
+
+  return keys.map(function(key) {
+    var value = results[key];
+    var missing = value.missing;
+    var check = symbol.success;
+    if (missing.length > 0) {
+      check = symbol.error + chalk.gray('  (' + missing.join(', ') + ')');
+    }
+    return console.log(log.bold('    · ') + key + ' ' + check);
+  });
+}
+
+var files = format(res.report.files);
 
 // excludeDirs
 var notused = res.notused;

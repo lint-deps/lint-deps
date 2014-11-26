@@ -2,47 +2,50 @@
 
 var fs = require('fs');
 var path = require('path');
-var mm = require('multimatch');
-var findRequires = require('match-requires');
-var filters = require('files-filters');
-var files = require('filter-files');
 var _ = require('lodash');
-var pkg = require(path.resolve(process.cwd(), 'package.json'));
+var mm = require('minimatch');
+var debug = require('debug')('lint-deps:index');
+var findRequires = require('match-requires');
 var excluded = require('./lib/exclusions');
+var comments = require('./lib/comments');
+var glob = require('./lib/glob');
 
 var types = ['dependencies', 'devDependencies', 'peerDependencies'];
+var pkg = require(path.resolve(process.cwd(), 'package.json'));
+var deps = dependencies(pkg)('*');
 
-function deps(pgk, type) {
-  if (pkg.hasOwnProperty(type)) {
-    return pkg[type];
-  }
-  return null;
+/**
+ * Return an array of the files that match the given patterns.
+ *
+ * @param {String} dir
+ * @param {Array} exclusions
+ * @return {Array}
+ * @api private
+ */
+
+function readdir(dir, exclusions) {
+  debug('readdir: %s', dir);
+  return glob({
+    exclusions: exclusions,
+    patterns: ['**/*.js'],
+    cwd: '.',
+  });
 }
 
-function depsKeys(pgk, type) {
-  var o = deps(pkg, type);
-  return o ? Object.keys(o) : [];
-}
 
-function dependencies(pkg) {
-  return function(pattern) {
-    return types.reduce(function(acc, type) {
-      var res = mm(depsKeys(pkg, type), pattern || '*');
-      return acc.concat(res);
-    }, []);
-  };
-}
+/**
+ * Read files and return an object with path and content.
+ *
+ * @param {String} `dir` current working directory
+ * @param {Array} exclusions
+ * @return {Object}
+ * @api private
+ */
 
-function lookup(dir, omit) {
-  var excl = excluded.invalid.concat(omit || []);
-  var dirs = new RegExp(excl.join('|'), 'g');
-  var exclude = filters.exclude(dirs);
-  var include = filters.include(/(\.js$|bin.*)/);
-  return files.sync(dir || '.', [exclude, include]);
-}
-
-function readFiles(dir, exclude) {
-  return lookup(dir, exclude).map(function(fp) {
+function readFiles(dir, exclusions) {
+  debug('readFiles: %s', dir);
+  return readdir(dir, exclusions).map(function(fp) {
+    debug('readFiles fp: %s', fp);
     return {
       path: fp.replace(/[\\\/]/g, '/'),
       content: fs.readFileSync(fp, 'utf8')
@@ -50,17 +53,55 @@ function readFiles(dir, exclude) {
   });
 }
 
+/**
+ * Parse code comments to get user defined values.
+ *
+ * @param {String} str
+ * @return {Array}
+ * @api private
+ */
+
+function parseComments(str) {
+  debug('parseComments');
+  var re = /\/\*\s*deps:([^*]+)\*\/|$/g;
+
+  return comments(str).reduce(function(acc, res) {
+    debug('parseComments reduce');
+    var match = re.exec(res);
+    if (!match) {
+      return [];
+    }
+
+    return acc.concat(match[1].split(/\s*,/g)
+      .filter(Boolean).map(function(str) {
+        debug('parseComments str');
+        return str.trim();
+      }));
+  }, []);
+}
+
+
 module.exports = function(dir, exclude) {
-  var deps = dependencies(pkg)('*');
+  debug('lint-deps: %s', dir);
 
   // allow the user to define exclusions
-  var excl = excluded.builtins;
+  var files = readFiles(dir, exclude);
   var report = {};
+  var userDefined = [];
 
-  var requires = _.reduce(readFiles(dir, exclude), function (acc, value) {
+  var requires = _.reduce(files, function (acc, value) {
+    debug('lint-deps reduce: %j', value);
+
+    var strip = require('strip-comments');
+    value.content = strip(value.content);
+
+    var missing = parseComments(value.content);
+    // console.log(re.exec(value.content))
     var results = findRequires(value.content);
+    userDefined = userDefined.concat(missing);
 
     var file = {};
+    file.path = value.path;
     file.requires = [];
 
     var len = results.length;
@@ -70,6 +111,7 @@ module.exports = function(dir, exclude) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
+      var excl = excluded.builtins;
 
       if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
         ele.line = ele.line - 1;
@@ -82,9 +124,24 @@ module.exports = function(dir, exclude) {
     return _.uniq(acc.concat(res));
   }, []).sort();
 
+
+  // Add user-defined values
+  requires = _.union(requires, userDefined);
+
   var notused = _.difference(deps, requires);
   var missing = requires.filter(function(req) {
     return deps.indexOf(req) === -1;
+  });
+
+  // Build `report`
+  _.transform(report, function(acc, value, fp) {
+    value.missing = [];
+    _.forIn(value.requires, function(obj) {
+      var i = missing.indexOf(obj.module);
+      value.missing = value.missing.concat(i !== -1 ? missing[i] : []);
+    });
+    value.missing = _.uniq(value.missing);
+    acc[fp] = value;
   });
 
   var rpt = {};
@@ -103,3 +160,29 @@ module.exports = function(dir, exclude) {
     missing: missing
   };
 };
+
+
+function pkgdeps(pkg, type) {
+  debug('pkgdeps');
+  if (pkg.hasOwnProperty(type)) {
+    return pkg[type];
+  }
+  return null;
+}
+
+function depsKeys(pkg, type) {
+  debug('depsKeys: %s, %s', pkg, type);
+  var o = pkgdeps(pkg, type);
+  return o ? Object.keys(o) : [];
+}
+
+function dependencies(pkg) {
+  return function(pattern) {
+    return types.reduce(function(acc, type) {
+      debug('dependencies: %s', type);
+
+      var res = mm.match(depsKeys(pkg, type), pattern || '*');
+      return acc.concat(res);
+    }, []);
+  };
+}
