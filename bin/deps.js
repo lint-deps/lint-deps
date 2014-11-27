@@ -50,6 +50,7 @@ function format(results) {
     var value = results[key];
     var missing = value.missing;
     var check = symbol.success;
+
     if (missing.length > 0) {
       check = symbol.error + chalk.gray('  (' + missing.join(', ') + ')');
     }
@@ -57,7 +58,7 @@ function format(results) {
   });
 }
 
-var files = format(res.report.files);
+format(res.report.files);
 
 // excludeDirs
 var notused = res.notused;
