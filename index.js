@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('lodash');
 var mm = require('minimatch');
+var strip = require('strip-comments');
 var debug = require('debug')('lint-deps:index');
 var findRequires = require('match-requires');
 var excluded = require('./lib/exclusions');
@@ -63,7 +64,10 @@ function readFiles(dir, exclusions) {
 
 function parseComments(str) {
   debug('parseComments');
-  var re = /\/\*\s*deps:([^*]+)\*\/|$/g;
+  var re = /\/\*\s*deps:([^*]+)\*\//gm;
+  if (!str) {
+    return [];
+  }
 
   return comments(str).reduce(function(acc, res) {
     debug('parseComments reduce');
@@ -74,12 +78,21 @@ function parseComments(str) {
 
     return acc.concat(match[1].split(/\s*,/g)
       .filter(Boolean).map(function(str) {
+
+        var o = {missing: [], omit: []};
+        str = str.trim();
+
+        if (str[0] === '!') {
+          o.omit.push(str);
+        } else {
+          o.missing.push(str);
+        }
+
         debug('parseComments str');
-        return str.trim();
+        return o;
       }));
   }, []);
 }
-
 
 module.exports = function(dir, exclude) {
   debug('lint-deps: %s', dir);
@@ -92,13 +105,15 @@ module.exports = function(dir, exclude) {
   var requires = _.reduce(files, function (acc, value) {
     debug('lint-deps reduce: %j', value);
 
-    var strip = require('strip-comments');
+    var config = parseComments(value.content);
+    var missing = config.missing;
+    var omitted = config.omit;
+
+    value.content= value.content.replace(/#!\/usr[\s\S]+?\n/, '');
     value.content = strip(value.content);
 
-    var missing = parseComments(value.content);
-    // console.log(re.exec(value.content))
     var results = findRequires(value.content);
-    userDefined = userDefined.concat(missing);
+    userDefined = userDefined.concat(missing).filter(Boolean);
 
     var file = {};
     file.path = value.path;
@@ -111,7 +126,7 @@ module.exports = function(dir, exclude) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
-      var excl = excluded.builtins;
+      var excl = excluded.builtins.concat(omitted || []);
 
       if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
         ele.line = ele.line - 1;
