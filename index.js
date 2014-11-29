@@ -120,7 +120,7 @@ module.exports = function(dir, exclude) {
       var name = ele.module;
       var excl = excluded.builtins;
 
-      if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
+      if (name && excl.indexOf(name) === -1 && !/^\./.test(name)) {
         ele.line = ele.line - 1;
         file.requires.push(ele);
         res.push(name);
