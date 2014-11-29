@@ -4,11 +4,11 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('lodash');
 var mm = require('minimatch');
-var strip = require('strip-comments');
 var debug = require('debug')('lint-deps:index');
+var commandments = require('commandments');
 var findRequires = require('match-requires');
 var excluded = require('./lib/exclusions');
-var comments = require('./lib/comments');
+var strip = require('./lib/strip');
 var glob = require('./lib/glob');
 
 var types = ['dependencies', 'devDependencies', 'peerDependencies'];
@@ -29,7 +29,7 @@ function readdir(dir, exclusions) {
   return glob({
     exclusions: exclusions,
     patterns: ['**/*.js'],
-    cwd: '.',
+    cwd: dir,
   });
 }
 
@@ -55,44 +55,36 @@ function readFiles(dir, exclusions) {
 }
 
 /**
- * Parse code comments to get user defined values.
+ * Parse commands/arguments from code comments.
  *
  * @param {String} str
  * @return {Array}
  * @api private
  */
 
-function parseComments(str) {
-  debug('parseComments');
-  var re = /\/\*\s*deps:([^*]+)\*\//gm;
-  if (!str) {
-    return [];
-  }
+function parseCommands(str) {
+  debug('parseCommands');
+  if (!str) return [];
 
-  return comments(str).reduce(function(acc, res) {
-    debug('parseComments reduce');
-    var match = re.exec(res);
-    if (!match) {
-      return [];
-    }
+  var commands = commandments(['deps'], str || '');
 
-    return acc.concat(match[1].split(/\s*,/g)
-      .filter(Boolean).map(function(str) {
+  return _.reduce(commands, function(acc, res) {
+    debug('parseCommands reduce');
+    acc.required = acc.required || [];
+    acc.ignored = acc.ignored || [];
 
-        var o = {missing: [], omit: []};
-        str = str.trim();
+    res._.forEach(function(arg) {
+      if (arg[0] === '!') {
+        acc.ignored.push(arg.slice(1));
+      } else {
+        acc.required.push(arg);
+      }
+    });
 
-        if (str[0] === '!') {
-          o.omit.push(str);
-        } else {
-          o.missing.push(str);
-        }
-
-        debug('parseComments str');
-        return o;
-      }));
-  }, []);
+    return acc;
+  }, {});
 }
+
 
 module.exports = function(dir, exclude) {
   debug('lint-deps: %s', dir);
@@ -100,20 +92,20 @@ module.exports = function(dir, exclude) {
   // allow the user to define exclusions
   var files = readFiles(dir, exclude);
   var report = {};
-  var userDefined = [];
+  var userDefined = {};
 
   var requires = _.reduce(files, function (acc, value) {
     debug('lint-deps reduce: %j', value);
 
-    var config = parseComments(value.content);
-    var missing = config.missing;
-    var omitted = config.omit;
+    var commands = parseCommands(value.content);
+
+    userDefined.requires = commands.required || [];
+    userDefined.ignored = commands.ignored || [];
 
     value.content= value.content.replace(/#!\/usr[\s\S]+?\n/, '');
     value.content = strip(value.content);
 
     var results = findRequires(value.content);
-    userDefined = userDefined.concat(missing).filter(Boolean);
 
     var file = {};
     file.path = value.path;
@@ -126,7 +118,7 @@ module.exports = function(dir, exclude) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
-      var excl = excluded.builtins.concat(omitted || []);
+      var excl = excluded.builtins;
 
       if (name && excl.indexOf(name) === -1 && !/\./.test(name)) {
         ele.line = ele.line - 1;
@@ -141,7 +133,8 @@ module.exports = function(dir, exclude) {
 
 
   // Add user-defined values
-  requires = _.union(requires, userDefined);
+  requires = _.union(requires, userDefined.requires);
+  deps = _.union(deps, userDefined.ignored);
 
   var notused = _.difference(deps, requires);
   var missing = requires.filter(function(req) {
@@ -161,7 +154,7 @@ module.exports = function(dir, exclude) {
 
   var rpt = {};
   rpt.missing = missing;
-  rpt.notused = notused;
+  rpt.notused = _.difference(notused, userDefined.ignored);
   rpt.files = report;
 
   return {
@@ -170,7 +163,7 @@ module.exports = function(dir, exclude) {
     // modules that are actually required
     requires: requires,
     // modules that are listed in package.json, but not used
-    notused: notused,
+    notused: rpt.notused,
     // modules that are actaully required, but missing from package.json
     missing: missing
   };
