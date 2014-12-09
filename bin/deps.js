@@ -111,7 +111,7 @@ if(missing.length === 0) {
   // install
   inquirer.prompt(prompts, function (answer) {
     if(answer.install === true) {
-      spawn([answers(answer)]);
+      spawn(answers(answer));
     } else {
       log.success('\n  Got it. All is good.');
       process.exit(0);
