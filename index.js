@@ -1,7 +1,6 @@
 'use strict';
 
 var fs = require('fs');
-var path = require('path');
 var _ = require('lodash');
 var mm = require('minimatch');
 var debug = require('debug')('lint-deps:index');
@@ -12,79 +11,8 @@ var strip = require('./lib/strip');
 var glob = require('./lib/glob');
 
 var types = ['dependencies', 'devDependencies', 'peerDependencies'];
-var pkg = require(path.resolve(process.cwd(), 'package.json'));
+var pkg = require('load-pkg');
 var deps = dependencies(pkg)('*');
-
-/**
- * Return an array of the files that match the given patterns.
- *
- * @param {String} dir
- * @param {Array} exclusions
- * @return {Array}
- * @api private
- */
-
-function readdir(dir, exclusions) {
-  debug('readdir: %s', dir);
-  return glob({
-    exclusions: exclusions,
-    patterns: ['**/*.js'],
-    cwd: dir,
-  });
-}
-
-
-/**
- * Read files and return an object with path and content.
- *
- * @param {String} `dir` current working directory
- * @param {Array} exclusions
- * @return {Object}
- * @api private
- */
-
-function readFiles(dir, exclusions) {
-  debug('readFiles: %s', dir);
-  return readdir(dir, exclusions).map(function(fp) {
-    debug('readFiles fp: %s', fp);
-    return {
-      path: fp.replace(/[\\\/]/g, '/'),
-      content: fs.readFileSync(fp, 'utf8')
-    };
-  });
-}
-
-/**
- * Parse commands/arguments from code comments.
- *
- * @param {String} str
- * @return {Array}
- * @api private
- */
-
-function parseCommands(str) {
-  debug('parseCommands');
-  if (!str) return [];
-
-  var commands = commandments(['deps'], str || '');
-
-  return _.reduce(commands, function(acc, res) {
-    debug('parseCommands reduce');
-    acc.required = acc.required || [];
-    acc.ignored = acc.ignored || [];
-
-    res._.forEach(function(arg) {
-      if (arg[0] === '!') {
-        acc.ignored.push(arg.slice(1));
-      } else {
-        acc.required.push(arg);
-      }
-    });
-
-    return acc;
-  }, {});
-}
-
 
 module.exports = function(dir, exclude) {
   debug('lint-deps: %s', dir);
@@ -169,6 +97,81 @@ module.exports = function(dir, exclude) {
   };
 };
 
+/**
+ * Return an array of the files that match the given patterns.
+ *
+ * @param {String} dir
+ * @param {Array} exclusions
+ * @return {Array}
+ * @api private
+ */
+
+function readdir(dir, exclusions) {
+  debug('readdir: %s', dir);
+  return glob({
+    exclusions: exclusions,
+    patterns: ['**/*.js'],
+    cwd: dir,
+  });
+}
+
+/**
+ * Read files and return an object with path and content.
+ *
+ * @param {String} `dir` current working directory
+ * @param {Array} exclusions
+ * @return {Object}
+ * @api private
+ */
+
+function readFiles(dir, exclusions) {
+  debug('readFiles: %s', dir);
+  return readdir(dir, exclusions).map(function(fp) {
+    debug('readFiles fp: %s', fp);
+    return {
+      path: fp.replace(/[\\\/]/g, '/'),
+      content: fs.readFileSync(fp, 'utf8')
+    };
+  });
+}
+
+/**
+ * Parse commands/arguments from code comments.
+ *
+ * @param {String} str
+ * @return {Array}
+ * @api private
+ */
+
+function parseCommands(str) {
+  debug('parseCommands');
+  if (!str) {
+    return [];
+  }
+
+  var commands = commandments(['deps'], str || '');
+
+  return _.reduce(commands, function(acc, res) {
+    debug('parseCommands reduce');
+    acc.required = acc.required || [];
+    acc.ignored = acc.ignored || [];
+
+    res._.forEach(function(arg) {
+      if (arg[0] === '!') {
+        acc.ignored.push(arg.slice(1));
+      } else {
+        acc.required.push(arg);
+      }
+    });
+
+    return acc;
+  }, {});
+}
+
+/**
+ * Get the given `type` of dependencies
+ * from package.json
+ */
 
 function pkgdeps(pkg, type) {
   debug('pkgdeps');
@@ -178,18 +181,35 @@ function pkgdeps(pkg, type) {
   return null;
 }
 
+/**
+ * Return an array of keys for the dependencies
+ * in package.json
+ */
+
 function depsKeys(pkg, type) {
   debug('depsKeys: %s, %s', pkg, type);
   var o = pkgdeps(pkg, type);
   return o ? Object.keys(o) : [];
 }
 
+/**
+ * Return a function to get an array of `dependencies` from
+ * package.json that match the given `pattern`
+ *
+ * @param {Object} pkg
+ * @return {Array}
+ * @api private
+ */
+
 function dependencies(pkg) {
   return function(pattern) {
-    return types.reduce(function(acc, type) {
-      debug('dependencies: %s', type);
+    debug('dependencies pattern: %s', pattern);
 
-      var res = mm.match(depsKeys(pkg, type), pattern || '*');
+    return types.reduce(function(acc, type) {
+      debug('dependencies type: %s', type);
+
+      var keys = depsKeys(pkg, type);
+      var res = mm.match(keys, pattern || '*');
       return acc.concat(res);
     }, []);
   };
