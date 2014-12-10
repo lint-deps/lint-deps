@@ -1,20 +1,21 @@
 {
+  "asi": false,
   "boss": true,
   "curly": true,
   "eqeqeq": true,
   "eqnull": true,
+  "esnext": true,
   "immed": true,
+  "indent": 2,
   "latedef": true,
+  "laxcomma": false,
+  "mocha": true,
   "newcap": true,
   "noarg": true,
   "node": true,
+  "quotmark": "single",
   "sub": true,
+  "trailing": true,
   "undef": true,
-  "unused": true,
-  "globals": {
-    "before": true,
-    "after": true,
-    "describe": true,
-    "it": true
-  }
+  "unused": true
 }
