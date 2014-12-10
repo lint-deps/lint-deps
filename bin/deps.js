@@ -7,6 +7,7 @@ process.title = 'lint-deps';
 var chalk = require('chalk');
 var wrap = require('word-wrap');
 var argv = require('minimist')(process.argv.slice(2));
+var spawn = require('spawn-commands');
 var symbol = require('log-symbols');
 var inquirer = require('inquirer');
 var write = require('write');
@@ -14,7 +15,6 @@ var log = require('verbalize');
 
 var question = require('../lib/question');
 var answers = require('../lib/answers');
-var spawn = require('../lib/spawn');
 var deps = require('..');
 
 var dir = argv.d || argv.dir || '.';
