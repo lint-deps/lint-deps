@@ -1,7 +1,7 @@
 {
   "name": "lint-deps",
   "description": "CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "main": "index.js",
   "homepage": "https://github.com/jonschlinkert/lint-deps",
   "author": {
@@ -23,16 +23,16 @@
   ],
   "preferGlobal": true,
   "bin": {
-    "deps": "./bin/deps.js"
+    "deps": "./cli.js"
   },
   "dependencies": {
-    "array-union": "^1.0.1",
-    "async": "^0.9.0",
+    "array-unique": "^0.1.1",
     "chalk": "^0.5.1",
     "commandments": "^0.1.3",
     "debug": "^2.1.0",
     "globby": "^1.0.0",
     "inquirer": "^0.8.0",
+    "load-pkg": "^0.2.0",
     "lodash": "^2.4.1",
     "log-symbols": "^1.0.1",
     "match-requires": "^0.3.0",
