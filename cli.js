@@ -13,9 +13,9 @@ var inquirer = require('inquirer');
 var write = require('write');
 var log = require('verbalize');
 
-var question = require('../lib/question');
-var answers = require('../lib/answers');
-var deps = require('..');
+var question = require('./lib/question');
+var answers = require('./lib/answers');
+var deps = require('./');
 
 var dir = argv.d || argv.dir || '.';
 var exc = argv.e || argv.exclude;
