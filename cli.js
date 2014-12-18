@@ -104,7 +104,7 @@ if(missing.length === 0) {
   });
 
   // Generate questions based on missing deps.
-  prompts = prompts.concat(question(missing));
+  prompts = prompts.concat(question(missing, inquirer));
 
   // Generate the list of missing dependencies
   // to allow the user to select which ones to
