@@ -9,3 +9,8 @@ TODO.md
 vendor
 
 *.sublime-*
+
+
+# npmignore
+.*
+test.js
