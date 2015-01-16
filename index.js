@@ -1,18 +1,28 @@
 'use strict';
 
+/**
+ * Module dependencies
+ */
+
 var fs = require('fs');
-var _ = require('lodash');
-var mm = require('minimatch');
+var mm = require('micromatch');
 var debug = require('debug')('lint-deps:index');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
+var _ = require('lodash');
+
+/**
+ * Local dependencies
+ */
+
 var excluded = require('./lib/exclusions');
+var custom = require('./lib/custom');
 var strip = require('./lib/strip');
 var glob = require('./lib/glob');
-
 var types = ['dependencies', 'devDependencies', 'peerDependencies'];
 var pkg = require('load-pkg');
 var deps = dependencies(pkg)('*');
+
 
 module.exports = function(dir, exclude) {
   debug('lint-deps: %s', dir);
@@ -26,14 +36,20 @@ module.exports = function(dir, exclude) {
     debug('lint-deps reduce: %j', value);
 
     var commands = parseCommands(value.content);
-
     userDefined.requires = commands.required || [];
     userDefined.ignored = commands.ignored || [];
 
-    value.content= value.content.replace(/#!\/usr[\s\S]+?\n/, '');
+    value.content = value.content.replace(/#!\/usr[\s\S]+?\n/, '');
     value.content = strip(value.content);
 
     var results = findRequires(value.content);
+
+    // placeholder for custom matchers
+    var matchers = [];
+    var matches = custom(value.content, matchers);
+    if (matches) {
+      results = results.concat(matches);
+    }
 
     var file = {};
     file.path = value.path;
@@ -85,16 +101,14 @@ module.exports = function(dir, exclude) {
   rpt.notused = _.difference(notused, userDefined.ignored);
   rpt.files = report;
 
-  return {
-    // modules that are actually required
-    report: rpt,
-    // modules that are actually required
-    requires: requires,
-    // modules that are listed in package.json, but not used
-    notused: rpt.notused,
-    // modules that are actaully required, but missing from package.json
-    missing: missing
-  };
+  var o = {report: rpt};
+  // modules that are actually required
+  o.requires = requires;
+  // modules that are listed in package.json, but not used
+  o.notused = rpt.notused;
+  // modules that are actaully required, but missing from package.json
+  o.missing = missing;
+  return o;
 };
 
 /**
