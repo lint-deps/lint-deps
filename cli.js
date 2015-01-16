@@ -8,9 +8,11 @@ var chalk = require('chalk');
 var wrap = require('word-wrap');
 var argv = require('minimist')(process.argv.slice(2));
 var spawn = require('spawn-commands');
+var filter = require('filter-object');
 var symbol = require('log-symbols');
 var inquirer = require('inquirer');
-var write = require('write');
+var writeJson = require('write-json');
+var pkg = require('load-pkg');
 var log = require('verbalize');
 
 var question = require('./lib/question');
@@ -19,7 +21,24 @@ var deps = require('./');
 
 var dir = argv.d || argv.dir || '.';
 var exc = argv.e || argv.exclude;
+var omit = argv.o || argv.omit;
+var clean = argv.c || argv.clean;
+var omitdev = argv.m || argv.omitdev;
 var report = argv.r || argv.report;
+
+if (omit) {
+  if (pkg.hasOwnProperty('dependencies')) {
+    pkg.dependencies = filter(pkg.dependencies, ['*', '!' + omit]);
+    writeJson('package.json', pkg);
+  }
+}
+
+if (omitdev) {
+  if (pkg.hasOwnProperty('devDependencies')) {
+    pkg.devDependencies = filter(pkg.devDependencies, ['*', '!' + omitdev]);
+    writeJson('package.json', pkg);
+  }
+}
 
 function requires(dir, exclude) {
   var exclusions = exclude && exclude.split(',').filter(Boolean);
@@ -34,7 +53,7 @@ if (report) {
   if (!/\./.test(report)) {
     report = report + '.json';
   }
-  write.sync(report, JSON.stringify(res, null, 2));
+  writeJson(report, res);
   log.success('\n  Report written to: ' + report);
   process.exit(0);
 }
@@ -63,6 +82,20 @@ format(res.report.files);
 // excludeDirs
 var notused = res.notused;
 var missing = res.missing;
+
+if (clean) {
+  var omit = notused.map(function (dep) {
+    return '!' + dep;
+  });
+
+  if (pkg.hasOwnProperty('dependencies')) {
+    pkg.dependencies = filter(pkg.dependencies, ['*'].concat(omit));
+  }
+  if (pkg.hasOwnProperty('devDependencies')) {
+    pkg.devDependencies = filter(pkg.devDependencies, ['*'].concat(omit));
+  }
+  writeJson('package.json', pkg);
+}
 
 // Prompts
 function unusedPackages() {
