@@ -19,10 +19,13 @@ var excluded = require('./lib/exclusions');
 var custom = require('./lib/custom');
 var strip = require('./lib/strip');
 var glob = require('./lib/glob');
-var types = ['dependencies', 'devDependencies', 'peerDependencies'];
 var pkg = require('load-pkg');
-var deps = dependencies(pkg)('*');
 
+/**
+ * Config
+ */
+
+var deps = dependencies(pkg)('*');
 
 module.exports = function(dir, exclude) {
   debug('lint-deps: %s', dir);
@@ -42,7 +45,10 @@ module.exports = function(dir, exclude) {
     value.content = value.content.replace(/#!\/usr[\s\S]+?\n/, '');
     value.content = strip(value.content);
 
-    var results = findRequires(value.content);
+    var results = [];
+    if (value.path !== '.verb.md') {
+      results = findRequires(value.content);
+    }
 
     // placeholder for custom matchers
     var matchers = [];
@@ -124,7 +130,7 @@ function readdir(dir, exclusions) {
   debug('readdir: %s', dir);
   return glob({
     exclusions: exclusions,
-    patterns: ['**/*.js'],
+    patterns: ['**/*.js', '.verb.md'],
     cwd: dir,
   });
 }
@@ -140,8 +146,10 @@ function readdir(dir, exclusions) {
 
 function readFiles(dir, exclusions) {
   debug('readFiles: %s', dir);
+
   return readdir(dir, exclusions).map(function(fp) {
     debug('readFiles fp: %s', fp);
+
     return {
       path: fp.replace(/[\\\/]/g, '/'),
       content: fs.readFileSync(fp, 'utf8')
@@ -163,10 +171,10 @@ function parseCommands(str) {
     return [];
   }
 
-  var commands = commandments(['deps'], str || '');
-
+  var commands = commandments(['deps', 'require'], str || '');
   return _.reduce(commands, function(acc, res) {
     debug('parseCommands reduce');
+
     acc.required = acc.required || [];
     acc.ignored = acc.ignored || [];
 
@@ -177,7 +185,6 @@ function parseCommands(str) {
         acc.required.push(arg);
       }
     });
-
     return acc;
   }, {});
 }
@@ -202,8 +209,10 @@ function pkgdeps(pkg, type) {
 
 function depsKeys(pkg, type) {
   debug('depsKeys: %s, %s', pkg, type);
-  var o = pkgdeps(pkg, type);
-  return o ? Object.keys(o) : [];
+  var deps = pkgdeps(pkg, type);
+  return deps
+    ? Object.keys(deps)
+    : [];
 }
 
 /**
@@ -215,11 +224,11 @@ function depsKeys(pkg, type) {
  * @api private
  */
 
-function dependencies(pkg) {
+function dependencies(pkg, types) {
   return function(pattern) {
     debug('dependencies pattern: %s', pattern);
 
-    return types.reduce(function(acc, type) {
+    return depTypes(types).reduce(function(acc, type) {
       debug('dependencies type: %s', type);
 
       var keys = depsKeys(pkg, type);
@@ -227,4 +236,12 @@ function dependencies(pkg) {
       return acc.concat(res);
     }, []);
   };
+}
+
+function depTypes(types) {
+  return types || [
+    'peerDependencies',
+    'devDependencies',
+    'dependencies'
+  ];
 }

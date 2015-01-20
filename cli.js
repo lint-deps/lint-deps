@@ -46,6 +46,7 @@ function requires(dir, exclude) {
 }
 
 var res = requires(dir, exc);
+
 if (report) {
   if (report === true) {
     report = 'report.json';
