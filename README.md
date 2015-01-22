@@ -68,7 +68,7 @@ If packages are missing, you'll see a prompt like this (also shows which files r
 
 **choose dependencies**
 
-Workds the same way for `devDependencies`:
+Works the same way for `devDependencies`:
 
 ![image](https://cloud.githubusercontent.com/assets/383994/2775421/43a349be-cac5-11e3-9cc6-20e9a3ae7f26.png)
 
