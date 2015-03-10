@@ -70,8 +70,8 @@ module.exports = function(dir, patterns, options) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
-      var regex = /\//; // see https://github.com/jonschlinkert/lint-deps/issues/8
-      var excl = ignored.builtins.concat(['./**', regex]);
+      var regex = /\/|^\./; // see https://github.com/jonschlinkert/lint-deps/issues/8
+      var excl = ignored.builtins.concat([regex]);
 
       if (name && !mm.any(name, excl)) {
         ele.line = ele.line - 1;
