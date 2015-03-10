@@ -70,9 +70,10 @@ module.exports = function(dir, patterns, options) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
-      var excl = ignored.builtins;
+      var regex = /\//; // see https://github.com/jonschlinkert/lint-deps/issues/8
+      var excl = ignored.builtins.concat(['./**', regex]);
 
-      if (name && excl.indexOf(name) === -1 && !/^\./.test(name)) {
+      if (name && !mm.any(name, excl)) {
         ele.line = ele.line - 1;
         file.requires.push(ele);
         res.push(name);
@@ -82,7 +83,6 @@ module.exports = function(dir, patterns, options) {
     report[value.path] = file;
     return _.uniq(acc.concat(res));
   }, []).sort();
-
 
   // Add user-defined values
   requires = _.union(requires, userDefined.requires);
