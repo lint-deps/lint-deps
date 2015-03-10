@@ -19,12 +19,13 @@ var question = require('./lib/question');
 var answers = require('./lib/answers');
 var deps = require('./');
 
-var dir = argv.d || argv.dir || '.';
-var exc = argv.e || argv.exclude;
-var omit = argv.o || argv.omit;
-var clean = argv.c || argv.clean;
+var dir     = argv.d || argv.dir || '.';
+var omit    = argv.o || argv.omit;
+var clean   = argv.c || argv.clean;
+var files   = argv.f || argv.files || [];
+var ignore  = argv.i || argv.ignore;
 var omitdev = argv.m || argv.omitdev;
-var report = argv.r || argv.report;
+var report  = argv.r || argv.report;
 
 if (omit) {
   if (pkg.hasOwnProperty('dependencies')) {
@@ -40,12 +41,7 @@ if (omitdev) {
   }
 }
 
-function requires(dir, exclude) {
-  var exclusions = exclude && exclude.split(',').filter(Boolean);
-  return deps(dir, exclusions);
-}
-
-var res = requires(dir, exc);
+var res = deps(dir, files, {ignore: ignore});
 
 if (report) {
   if (report === true) {
