@@ -15,7 +15,7 @@ var _ = require('lodash');
  * Local dependencies
  */
 
-var excluded = require('./lib/exclusions');
+var ignored = require('./lib/ignore');
 var custom = require('./lib/custom');
 var strip = require('./lib/strip');
 var glob = require('./lib/glob');
@@ -25,19 +25,21 @@ var pkg = require('load-pkg');
  * Config
  */
 
-var deps = dependencies(pkg)('*');
+module.exports = function(dir, patterns, options) {
+  if (typeof patterns !== 'string' && !Array.isArray(patterns)) {
+    options = patterns; patterns = null;
+  }
 
-module.exports = function(dir, exclude) {
-  debug('lint-deps: %s', dir);
+  // TODO: maybe expose the patterns for pkg
+  var deps = dependencies(pkg)('*');
+  options = options || {};
 
   // allow the user to define exclusions
-  var files = readFiles(dir, exclude);
+  var files = readFiles(dir, patterns, options);
   var report = {};
   var userDefined = {};
 
   var requires = _.reduce(files, function (acc, value) {
-    debug('lint-deps reduce: %j', value);
-
     var commands = parseCommands(value.content);
     userDefined.requires = commands.required || [];
     userDefined.ignored = commands.ignored || [];
@@ -68,7 +70,7 @@ module.exports = function(dir, exclude) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module;
-      var excl = excluded.builtins;
+      var excl = ignored.builtins;
 
       if (name && excl.indexOf(name) === -1 && !/^\./.test(name)) {
         ele.line = ele.line - 1;
@@ -118,42 +120,20 @@ module.exports = function(dir, exclude) {
 };
 
 /**
- * Return an array of the files that match the given patterns.
- *
- * @param {String} dir
- * @param {Array} exclusions
- * @return {Array}
- * @api private
- */
-
-function readdir(dir, exclusions) {
-  debug('readdir: %s', dir);
-  return glob({
-    exclusions: exclusions,
-    patterns: ['**/*.js', '.verb.md'],
-    cwd: dir,
-  });
-}
-
-/**
  * Read files and return an object with path and content.
  *
  * @param {String} `dir` current working directory
- * @param {Array} exclusions
+ * @param {Array} `ignore` Ignore patterns.
  * @return {Object}
  * @api private
  */
 
-function readFiles(dir, exclusions) {
-  debug('readFiles: %s', dir);
-
-  return readdir(dir, exclusions).map(function(fp) {
-    debug('readFiles fp: %s', fp);
-
-    return {
-      path: fp.replace(/[\\\/]/g, '/'),
-      content: fs.readFileSync(fp, 'utf8')
-    };
+function readFiles(dir, patterns, options) {
+  return glob(dir, patterns, options).map(function(fp) {
+    var res = {};
+    res.path = fp.replace(/[\\\/]+/g, '/');
+    res.content = fs.readFileSync(fp, 'utf8');
+    return res;
   });
 }
 
@@ -166,15 +146,10 @@ function readFiles(dir, exclusions) {
  */
 
 function parseCommands(str) {
-  debug('parseCommands');
-  if (!str) {
-    return [];
-  }
+  if (!str) { return []; }
 
   var commands = commandments(['deps', 'require'], str || '');
   return _.reduce(commands, function(acc, res) {
-    debug('parseCommands reduce');
-
     acc.required = acc.required || [];
     acc.ignored = acc.ignored || [];
 
@@ -195,7 +170,6 @@ function parseCommands(str) {
  */
 
 function pkgdeps(pkg, type) {
-  debug('pkgdeps');
   if (pkg.hasOwnProperty(type)) {
     return pkg[type];
   }
@@ -208,7 +182,6 @@ function pkgdeps(pkg, type) {
  */
 
 function depsKeys(pkg, type) {
-  debug('depsKeys: %s, %s', pkg, type);
   var deps = pkgdeps(pkg, type);
   return deps
     ? Object.keys(deps)
@@ -226,10 +199,8 @@ function depsKeys(pkg, type) {
 
 function dependencies(pkg, types) {
   return function(pattern) {
-    debug('dependencies pattern: %s', pattern);
 
     return depTypes(types).reduce(function(acc, type) {
-      debug('dependencies type: %s', type);
 
       var keys = depsKeys(pkg, type);
       var res = mm.match(keys, pattern || '*');
