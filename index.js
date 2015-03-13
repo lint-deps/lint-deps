@@ -70,7 +70,7 @@ module.exports = function(dir, patterns, options) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module.trim();
-      var regex = /\/|^\./; // see https://github.com/jonschlinkert/lint-deps/issues/8
+      var regex = /\/|^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
       var excl = ignored.builtins;
 
       if (name && excl.indexOf(name) !== -1) {

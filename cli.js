@@ -4,6 +4,7 @@
 
 process.title = 'lint-deps';
 
+var path = require('path');
 var chalk = require('chalk');
 var wrap = require('word-wrap');
 var argv = require('minimist')(process.argv.slice(2));
@@ -14,12 +15,13 @@ var inquirer = require('inquirer');
 var writeJson = require('write-json');
 var pkg = require('load-pkg');
 var log = require('verbalize');
+var cwd = require('./lib/cwd');
 
 var question = require('./lib/question');
 var answers = require('./lib/answers');
 var deps = require('./');
 
-var dir     = argv.d || argv.dir || '.';
+var dir     = path.resolve(cwd, argv.d || argv.dir || '.');
 var omit    = argv.o || argv.omit;
 var clean   = argv.c || argv.clean;
 var files   = argv.f || argv.files || [];
