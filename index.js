@@ -9,6 +9,7 @@ var mm = require('micromatch');
 var debug = require('debug')('lint-deps:index');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
+var pkg = require('load-pkg');
 var _ = require('lodash');
 
 /**
@@ -19,7 +20,6 @@ var ignored = require('./lib/ignore');
 var custom = require('./lib/custom');
 var strip = require('./lib/strip');
 var glob = require('./lib/glob');
-var pkg = require('load-pkg');
 
 /**
  * Config
@@ -69,15 +69,21 @@ module.exports = function(dir, patterns, options) {
 
     while (i < len) {
       var ele = results[i++];
-      var name = ele.module;
+      var name = ele.module.trim();
       var regex = /\/|^\./; // see https://github.com/jonschlinkert/lint-deps/issues/8
-      var excl = ignored.builtins.concat([regex]);
+      var excl = ignored.builtins;
 
-      if (name && !mm.any(name, excl)) {
-        ele.line = ele.line - 1;
-        file.requires.push(ele);
-        res.push(name);
+      if (name && excl.indexOf(name) !== -1) {
+        continue;
       }
+
+      if (name && mm.any(name, excl.concat([regex]))) {
+        continue;
+      }
+
+      ele.line = ele.line - 1;
+      file.requires.push(ele);
+      res.push(name);
     }
 
     report[value.path] = file;
