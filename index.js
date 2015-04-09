@@ -7,6 +7,7 @@
 var fs = require('fs');
 var mm = require('micromatch');
 var debug = require('debug')('lint-deps:index');
+var relative = require('relative');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
 var pkg = require('load-pkg');
@@ -135,12 +136,18 @@ module.exports = function(dir, patterns, options) {
  */
 
 function readFiles(dir, patterns, options) {
-  return glob(dir, patterns, options).map(function(fp) {
-    var res = {};
-    res.path = fp.replace(/[\\\/]+/g, '/');
-    res.content = fs.readFileSync(fp, 'utf8');
-    return res;
-  });
+  var files = glob(dir, patterns, options);
+  var len = files.length;
+  var res = [];
+
+  while (len--) {
+    var fp = files[len];
+    var file = {};
+    file.path = relative(fp.split('\\').join('/'));
+    file.content = fs.readFileSync(fp, 'utf8');
+    res.push(file);
+  }
+  return res;
 }
 
 /**
