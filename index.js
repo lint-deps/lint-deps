@@ -38,12 +38,13 @@ module.exports = function(dir, patterns, options) {
   // allow the user to define exclusions
   var files = readFiles(dir, patterns, options);
   var report = {};
-  var userDefined = {};
+  var userDefined = {requires: [], ignored: []};
 
   var requires = _.reduce(files, function (acc, value) {
     var commands = parseCommands(value.content);
-    userDefined.requires = commands.required || [];
-    userDefined.ignored = commands.ignored || [];
+
+    userDefined.requires = _.union(userDefined.requires, commands.required || []);
+    userDefined.ignored = _.union(userDefined.ignored, commands.ignored || []);
 
     value.content = value.content.replace(/#!\/usr[\s\S]+?\n/, '');
     value.content = strip(value.content);
