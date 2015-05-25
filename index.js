@@ -17,26 +17,23 @@ var _ = require('lodash');
  * Local dependencies
  */
 
-var ignored = require('./lib/ignore');
+var patterns = require('./lib/patterns');
 var custom = require('./lib/custom');
 var strip = require('./lib/strip');
-var glob = require('./lib/glob');
+var find = require('./lib/find');
 
 /**
  * Config
  */
 
-module.exports = function(dir, patterns, options) {
-  if (typeof patterns !== 'string' && !Array.isArray(patterns)) {
-    options = patterns; patterns = null;
-  }
-
-  // TODO: maybe expose the patterns for pkg
-  var deps = dependencies(pkg)('*');
+module.exports = function(dir, options) {
   options = options || {};
 
+  // TODO: maybe expose the exclusions for pkg
+  var deps = dependencies(pkg)('*');
+
   // allow the user to define exclusions
-  var files = readFiles(dir, patterns, options);
+  var files = readFiles(dir, options);
   var report = {};
   var userDefined = {requires: [], ignored: []};
 
@@ -72,8 +69,8 @@ module.exports = function(dir, patterns, options) {
     while (i < len) {
       var ele = results[i++];
       var name = ele.module.trim();
-      var regex = /\/|^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
-      var excl = ignored.builtins;
+      var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
+      var excl = patterns.builtins;
 
       if (name && excl.indexOf(name) !== -1) {
         continue;
@@ -82,6 +79,9 @@ module.exports = function(dir, patterns, options) {
       if (name && mm.any(name, excl.concat([regex]))) {
         continue;
       }
+
+      // see: https://github.com/jonschlinkert/lint-deps/issues/8
+      name = name.split(/[\\\/]/)[0];
 
       ele.line = ele.line - 1;
       file.requires.push(ele);
@@ -137,7 +137,7 @@ module.exports = function(dir, patterns, options) {
  */
 
 function readFiles(dir, patterns, options) {
-  var files = glob(dir, patterns, options);
+  var files = find(dir, patterns, options);
   var len = files.length;
   var res = [];
 

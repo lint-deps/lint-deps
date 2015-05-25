@@ -19,6 +19,7 @@
     "type": "MIT",
     "url": "https://github.com/jonschlinkert/lint-deps/blob/master/LICENSE"
   },
+  "files": ["index.js", "cli.js", "lib/"],
   "preferGlobal": true,
   "bin": {
     "deps": "cli.js"
@@ -29,8 +30,8 @@
     "chalk": "^1.0.0",
     "commandments": "^0.2.2",
     "debug": "^2.2.0",
-    "extend-shallow": "^1.1.2",
     "filter-object": "^1.1.2",
+    "get-value": "^1.1.4",
     "inquirer": "^0.8.3",
     "load-pkg": "^1.2.0",
     "lodash": "^3.8.0",
@@ -40,6 +41,7 @@
     "micromatch": "^2.1.6",
     "minimist": "^1.1.1",
     "parse-gitignore": "^0.1.2",
+    "regexp-special-chars": "^0.1.0",
     "relative": "^3.0.0",
     "spawn-commands": "^0.2.0",
     "verbalize": "^0.1.2",
