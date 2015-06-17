@@ -5,9 +5,11 @@
  */
 
 var fs = require('fs');
+var path = require('path');
 var mm = require('micromatch');
 var debug = require('debug')('lint-deps:index');
 var relative = require('relative');
+var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
 var pkg = require('load-pkg');
@@ -20,6 +22,7 @@ var _ = require('lodash');
 var patterns = require('./lib/patterns');
 var custom = require('./lib/custom');
 var strip = require('./lib/strip');
+var utils = require('./lib/utils');
 var find = require('./lib/find');
 
 /**
@@ -33,10 +36,9 @@ module.exports = function(dir, options) {
   var deps = dependencies(pkg)('*');
 
   // allow the user to define exclusions
+  var userDefined = extend({requires: [], ignored: [], only: []}, options);
   var files = readFiles(dir, options);
   var report = {};
-  var userDefined = {requires: [], ignored: []};
-
   var requires = _.reduce(files, function (acc, value) {
     var commands = parseCommands(value.content);
 
@@ -75,7 +77,6 @@ module.exports = function(dir, options) {
       if (name && excl.indexOf(name) !== -1) {
         continue;
       }
-
       if (name && mm.any(name, excl.concat([regex]))) {
         continue;
       }
@@ -92,11 +93,17 @@ module.exports = function(dir, options) {
     return _.uniq(acc.concat(res));
   }, []).sort();
 
+  var hasVerb = fs.existsSync(path.resolve('.verb.md'));
+
   // Add user-defined values
   requires = _.union(requires, userDefined.requires);
   deps = _.union(deps, userDefined.ignored);
 
   var notused = _.difference(deps, requires);
+  if (hasVerb && notused.indexOf('verb') !== -1) {
+    notused = _.difference(notused, ['verb']);
+  }
+
   var missing = requires.filter(function(req) {
     return deps.indexOf(req) === -1;
   });
@@ -136,8 +143,24 @@ module.exports = function(dir, options) {
  * @api private
  */
 
-function readFiles(dir, patterns, options) {
-  var files = find(dir, patterns, options);
+function readFiles(dir, options) {
+  options = options || [];
+  var files = [];
+
+  // if (options.only && options.only.length) {
+  //   files = mm(files, utils.arrayify(options.only));
+  // } else if (pkg.hasOwnProperty('files') && options.files) {
+  //   files = pkg.files;
+  //   if (pkg.main) files.push(pkg.main);
+  //   if (options.include) {
+  //     files = files.concat(options.include.split(/[,\s]+/));
+  //   }
+  //   files = utils.lookupEach(files);
+  // } else {
+  //   files = find(dir, options);
+  // }
+
+  files = find(dir, options);
   var len = files.length;
   var res = [];
 
@@ -213,9 +236,7 @@ function depsKeys(pkg, type) {
 
 function dependencies(pkg, types) {
   return function(pattern) {
-
     return depTypes(types).reduce(function(acc, type) {
-
       var keys = depsKeys(pkg, type);
       var res = mm.match(keys, pattern || '*');
       return acc.concat(res);

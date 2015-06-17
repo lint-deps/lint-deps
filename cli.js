@@ -7,6 +7,7 @@ process.title = 'lint-deps';
 var path = require('path');
 var chalk = require('chalk');
 var wrap = require('word-wrap');
+var extend = require('extend-shallow');
 var argv = require('minimist')(process.argv.slice(2));
 var spawn = require('spawn-commands');
 var filter = require('filter-object');
@@ -16,35 +17,23 @@ var writeJson = require('write-json');
 var pkg = require('load-pkg');
 var log = require('verbalize');
 var cwd = require('./lib/cwd');
+var utils = require('./lib/utils');
 
 var question = require('./lib/question');
 var answers = require('./lib/answers');
 var deps = require('./');
 
-var dir     = path.resolve(cwd, argv.d || argv.dir || '.');
-var omit    = argv.o || argv.omit;
-var clean   = argv.c || argv.clean;
-var files   = argv.f || argv.files || [];
-var ignore  = argv.i || argv.ignore;
-var omitdev = argv.m || argv.omitdev;
-var report  = argv.r || argv.report;
+var options = {};
+options.dir     = path.resolve(cwd, argv.d || argv.dir || '.');
+options.only    = argv.only || [];
+options.files   = argv.files || [];
+options.clean   = argv.c || argv.clean;
+options.ignore  = argv.i || argv.ignore || [];
+options.report  = argv.r || argv.report;
 
-if (omit) {
-  if (pkg.hasOwnProperty('dependencies')) {
-    pkg.dependencies = filter(pkg.dependencies, ['*', '!' + omit]);
-    writeJson('package.json', pkg);
-  }
-}
+var res = deps(options.dir, extend(argv, options));
 
-if (omitdev) {
-  if (pkg.hasOwnProperty('devDependencies')) {
-    pkg.devDependencies = filter(pkg.devDependencies, ['*', '!' + omitdev]);
-    writeJson('package.json', pkg);
-  }
-}
-
-var res = deps(dir, files, {ignore: ignore});
-
+var report = options.report;
 if (report) {
   if (report === true) {
     report = 'report.json';
@@ -82,7 +71,7 @@ format(res.report.files);
 var notused = res.notused;
 var missing = res.missing;
 
-if (clean) {
+if (options.clean) {
   var omit = notused.map(function (dep) {
     return '!' + dep;
   });
