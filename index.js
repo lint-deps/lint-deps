@@ -24,6 +24,7 @@ var custom = require('./lib/custom');
 var strip = require('./lib/strip');
 var utils = require('./lib/utils');
 var find = require('./lib/find');
+var cwd = require('./lib/cwd');
 
 /**
  * Config
@@ -45,7 +46,7 @@ module.exports = function(dir, options) {
     userDefined.requires = _.union(userDefined.requires, commands.required || []);
     userDefined.ignored = _.union(userDefined.ignored, commands.ignored || []);
 
-    value.content = value.content.replace(/#!\/usr[\s\S]+?\n/, '');
+    value.content = value.content.replace(/#!\/usr[^\n]+/, '');
     value.content = strip(value.content);
 
     var results = [];
@@ -77,7 +78,8 @@ module.exports = function(dir, options) {
       if (name && excl.indexOf(name) !== -1) {
         continue;
       }
-      if (name && mm.any(name, excl.concat([regex]))) {
+
+      if (name && mm.any(name, excl.concat(regex))) {
         continue;
       }
 
@@ -89,7 +91,7 @@ module.exports = function(dir, options) {
       res.push(name);
     }
 
-    report[value.path] = file;
+    report[file.path] = file;
     return _.uniq(acc.concat(res));
   }, []).sort();
 
@@ -120,6 +122,7 @@ module.exports = function(dir, options) {
   });
 
   var rpt = {};
+
   rpt.missing = missing;
   rpt.notused = _.difference(notused, userDefined.ignored);
   rpt.files = report;
@@ -147,18 +150,18 @@ function readFiles(dir, options) {
   options = options || [];
   var files = [];
 
-  // if (options.only && options.only.length) {
-  //   files = mm(files, utils.arrayify(options.only));
-  // } else if (pkg.hasOwnProperty('files') && options.files) {
-  //   files = pkg.files;
-  //   if (pkg.main) files.push(pkg.main);
-  //   if (options.include) {
-  //     files = files.concat(options.include.split(/[,\s]+/));
-  //   }
-  //   files = utils.lookupEach(files);
-  // } else {
-  //   files = find(dir, options);
-  // }
+  if (options.only && options.only.length) {
+    files = mm(files, utils.arrayify(options.only));
+  } else if (pkg.hasOwnProperty('files') && options.files) {
+    files = pkg.files;
+    if (pkg.main) files.push(pkg.main);
+    if (options.include) {
+      files = files.concat(options.include.split(/[,\s]+/));
+    }
+    files = utils.lookupEach(files);
+  } else {
+    files = find(dir, options);
+  }
 
   files = find(dir, options);
   var len = files.length;
@@ -167,7 +170,7 @@ function readFiles(dir, options) {
   while (len--) {
     var fp = files[len];
     var file = {};
-    file.path = relative(fp.split('\\').join('/'));
+    file.path = path.relative(cwd, fp.split('\\').join('/'));
     file.content = fs.readFileSync(fp, 'utf8');
     res.push(file);
   }
@@ -189,7 +192,6 @@ function parseCommands(str) {
   return _.reduce(commands, function(acc, res) {
     acc.required = acc.required || [];
     acc.ignored = acc.ignored || [];
-
     res._.forEach(function(arg) {
       if (arg[0] === '!') {
         acc.ignored.push(arg.slice(1));

@@ -30,6 +30,7 @@ options.files   = argv.files || [];
 options.clean   = argv.c || argv.clean;
 options.ignore  = argv.i || argv.ignore || [];
 options.report  = argv.r || argv.report;
+options.missingOnly  = argv.m || argv.missing;
 
 var res = deps(options.dir, extend(argv, options));
 
@@ -46,26 +47,36 @@ if (report) {
   process.exit(0);
 }
 
-function format(results) {
+function formatEach(results) {
   console.log();
   console.log('  Files scanned:');
 
   var keys = Object.keys(results);
   if (keys.length === 0) return '';
 
-  return keys.map(function(key) {
+  return keys.reduce(function(acc, key) {
     var value = results[key];
     var missing = value.missing;
     var check = symbol.success;
 
     if (missing.length > 0) {
       check = symbol.error + chalk.gray('  (' + missing.join(', ') + ')');
+      if (options.missingOnly) {
+        return acc.concat(format(key, check));
+      }
     }
-    return console.log(log.bold('    · ') + key + ' ' + check);
-  });
+    return acc.concat(format(key, check));
+  }, []);
 }
 
-format(res.report.files);
+function format(key, check) {
+  return log.bold('    · ') + key + ' ' + check;
+}
+
+
+formatEach(res.report.files).forEach(function (ele) {
+  console.log(ele);
+});
 
 // excludeDirs
 var notused = res.notused;

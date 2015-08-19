@@ -3,9 +3,9 @@ node_modules
 npm-debug.log
 
 tmp
-temp
 test
 TODO.md
 vendor
 
 *.sublime-*
+
