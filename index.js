@@ -7,8 +7,6 @@
 var fs = require('fs');
 var path = require('path');
 var mm = require('micromatch');
-var debug = require('debug')('lint-deps:index');
-var relative = require('relative');
 var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
@@ -72,9 +70,11 @@ module.exports = function(dir, options) {
     while (++i < len) {
       var ele = results[i];
       // account for lazily-required module dependencies with asliases
-      var name = ele.module.split(/['"],\s*['"]/)[0].trim();
+      ele.module = ele.module.split(/['"],\s*['"]/)[0].trim();
+      var name = ele.module;
       var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
       var excl = patterns.builtins;
+
 
       if (name && excl.indexOf(name) !== -1) {
         continue;
