@@ -67,11 +67,12 @@ module.exports = function(dir, options) {
 
     var len = results.length;
     var res = [];
-    var i = 0;
+    var i = -1;
 
-    while (i < len) {
-      var ele = results[i++];
-      var name = ele.module.trim();
+    while (++i < len) {
+      var ele = results[i];
+      // account for lazily-required module dependencies with asliases
+      var name = ele.module.split(/['"],\s*['"]/)[0].trim();
       var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
       var excl = patterns.builtins;
 
