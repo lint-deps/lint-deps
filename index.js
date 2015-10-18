@@ -1,256 +1,157 @@
 'use strict';
 
-/**
- * Module dependencies
- */
-
-var fs = require('fs');
 var path = require('path');
-var mm = require('micromatch');
-var extend = require('extend-shallow');
-var commandments = require('commandments');
-var findRequires = require('match-requires');
-var pkg = require('load-pkg');
-var _ = require('lodash');
-
-/**
- * Local dependencies
- */
-
-var patterns = require('./lib/patterns');
-var custom = require('./lib/custom');
-var strip = require('./lib/strip');
+var glob = require('matched');
+var toFile = require('to-file');
+// var union = require('arr-union');
+var union = require('union-value');
 var utils = require('./lib/utils');
-var find = require('./lib/find');
-var cwd = require('./lib/cwd');
+var strip = require('./lib/strip');
 
-/**
- * Config
- */
-
-module.exports = function(dir, options) {
-  options = options || {};
-
-  // TODO: maybe expose the exclusions for pkg
-  var deps = dependencies(pkg)('*');
-
-  // allow the user to define exclusions
-  var userDefined = extend({requires: [], ignored: [], only: []}, options);
-  var files = readFiles(dir, options);
-  var report = {};
-  var requires = _.reduce(files, function (acc, value) {
-    var commands = parseCommands(value.content);
-
-    userDefined.requires = _.union(userDefined.requires, commands.required || []);
-    userDefined.ignored = _.union(userDefined.ignored, commands.ignored || []);
-
-    value.content = value.content.replace(/#!\/usr[^\n]+/, '');
-    value.content = strip(value.content);
-
-    var results = [];
-    if (value.path !== '.verb.md') {
-      results = findRequires(value.content);
-    }
-
-    // placeholder for custom matchers
-    var matchers = [];
-    var matches = custom(value.content, matchers);
-    if (matches) {
-      results = results.concat(matches);
-    }
-
-    var file = {};
-    file.path = value.path;
-    file.requires = [];
-
-    var len = results.length;
-    var res = [];
-    var i = -1;
-
-    while (++i < len) {
-      var ele = results[i];
-      // account for lazily-required module dependencies with asliases
-      ele.module = ele.module.split(/['"],\s*['"]/)[0].trim();
-      var name = ele.module;
-      var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
-      var excl = patterns.builtins;
-
-
-      if (name && excl.indexOf(name) !== -1) {
-        continue;
-      }
-
-      if (name && mm.any(name, excl.concat(regex))) {
-        continue;
-      }
-
-      // see: https://github.com/jonschlinkert/lint-deps/issues/8
-      name = name.split(/[\\\/]/)[0];
-
-      ele.line = ele.line - 1;
-      file.requires.push(ele);
-      res.push(name);
-    }
-
-    report[file.path] = file;
-    return _.uniq(acc.concat(res));
-  }, []).sort();
-
-  var hasVerb = fs.existsSync(path.resolve('.verb.md'));
-
-  // Add user-defined values
-  requires = _.union(requires, userDefined.requires);
-  deps = _.union(deps, userDefined.ignored);
-
-  var notused = _.difference(deps, requires);
-  if (hasVerb && notused.indexOf('verb') !== -1) {
-    notused = _.difference(notused, ['verb']);
-  }
-
-  var missing = requires.filter(function(req) {
-    return deps.indexOf(req) === -1;
-  });
-
-  // Build `report`
-  _.transform(report, function(acc, value, fp) {
-    value.missing = [];
-    _.forIn(value.requires, function(obj) {
-      var i = missing.indexOf(obj.module);
-      value.missing = value.missing.concat(i !== -1 ? missing[i] : []);
-    });
-    value.missing = _.uniq(value.missing);
-    acc[fp] = value;
-  });
-
-  var rpt = {};
-
-  rpt.missing = missing;
-  rpt.notused = _.difference(notused, userDefined.ignored);
-  rpt.files = report;
-
-  var o = {report: rpt};
-  // modules that are actually required
-  o.requires = requires;
-  // modules that are listed in package.json, but not used
-  o.notused = rpt.notused;
-  // modules that are actaully required, but missing from package.json
-  o.missing = missing;
-  return o;
-};
-
-/**
- * Read files and return an object with path and content.
- *
- * @param {String} `dir` current working directory
- * @param {Array} `ignore` Ignore patterns.
- * @return {Object}
- * @api private
- */
-
-function readFiles(dir, options) {
-  options = options || [];
-  var files = [];
-
-  if (options.only && options.only.length) {
-    files = mm(files, utils.arrayify(options.only));
-  } else if (pkg.hasOwnProperty('files') && options.files) {
-    files = pkg.files;
-    if (pkg.main) files.push(pkg.main);
-    if (options.include) {
-      files = files.concat(options.include.split(/[,\s]+/));
-    }
-    files = utils.lookupEach(files);
-  } else {
-    files = find(dir, options);
-  }
-
-  files = find(dir, options);
-  var len = files.length;
-  var res = [];
-
-  while (len--) {
-    var fp = files[len];
-    var file = {};
-    file.path = path.relative(cwd, fp.split('\\').join('/'));
-    file.content = fs.readFileSync(fp, 'utf8');
-    res.push(file);
-  }
-  return res;
-}
-
-/**
- * Parse commands/arguments from code comments.
- *
- * @param {String} str
- * @return {Array}
- * @api private
- */
-
-function parseCommands(str) {
-  if (!str) { return []; }
-
-  var commands = commandments(['deps', 'require'], str || '');
-  return _.reduce(commands, function(acc, res) {
-    acc.required = acc.required || [];
-    acc.ignored = acc.ignored || [];
-    res._.forEach(function(arg) {
-      if (arg[0] === '!') {
-        acc.ignored.push(arg.slice(1));
-      } else {
-        acc.required.push(arg);
-      }
-    });
-    return acc;
-  }, {});
-}
-
-/**
- * Get the given `type` of dependencies
- * from package.json
- */
-
-function pkgdeps(pkg, type) {
-  if (pkg.hasOwnProperty(type)) {
-    return pkg[type];
-  }
-  return null;
-}
-
-/**
- * Return an array of keys for the dependencies
- * in package.json
- */
-
-function depsKeys(pkg, type) {
-  var deps = pkgdeps(pkg, type);
-  return deps
-    ? Object.keys(deps)
-    : [];
-}
-
-/**
- * Return a function to get an array of `dependencies` from
- * package.json that match the given `pattern`
- *
- * @param {Object} pkg
- * @return {Array}
- * @api private
- */
-
-function dependencies(pkg, types) {
-  return function(pattern) {
-    return depTypes(types).reduce(function(acc, type) {
-      var keys = depsKeys(pkg, type);
-      var res = mm.match(keys, pattern || '*');
-      return acc.concat(res);
-    }, []);
+function Lint(options) {
+  this.matchers = [];
+  this.files = {};
+  this.cache = {
+    dependencies: [],
+    devDependencies: [],
+    requires: {
+      local: [],
+      npm: []
+    },
+    includes: [],
+    excludes: [],
+    ignores: [],
+    filters: [],
+    unused: []
   };
 }
 
-function depTypes(types) {
-  return types || [
-    'peerDependencies',
-    'devDependencies',
-    'dependencies'
-  ];
+Lint.prototype = {
+  constructor: Lint,
+
+  deps: function (deps) {
+    if (typeof deps === 'object') {
+      this.union('dependencies', Object.keys(deps));
+    } else if (typeof deps === 'string') {
+      this.union('dependencies', deps);
+    }
+    return this;
+  },
+
+  devDeps: function (deps) {
+    if (typeof deps === 'object') {
+      this.union('devDependencies', Object.keys(deps));
+    } else if (typeof deps === 'string') {
+      this.union('devDependencies', deps);
+    }
+    return this;
+  },
+
+  require: function(pattern) {
+    if (typeof pattern === 'string') {
+      pattern = {module: pattern};
+    }
+    var mod = pattern.module;
+    if (/^\./.test(mod)) {
+      this.union('requires.local', mod);
+    } else {
+      this.union('requires.npm', mod);
+    }
+    return this;
+  },
+
+  requires: function(patterns) {
+    patterns = arrayify(patterns);
+    patterns.forEach(function (pattern) {
+      this.require(pattern);
+    }.bind(this));
+    return this;
+  },
+
+  include: function(pattern) {
+    this.union('includes', pattern);
+    return this;
+  },
+
+  exclude: function(pattern) {
+    this.union('excludes', pattern);
+    return this;
+  },
+
+  ignore: function(pattern) {
+    this.union('ignores', pattern);
+    return this;
+  },
+
+  unused: function(patterns) {
+    this.union('unused', patterns);
+    return this;
+  },
+
+  addFiles: function(patterns, options) {
+    options = options || {};
+    union(options, 'ignore', this.cache.ignores);
+    var files = glob.sync(patterns, options);
+    var len = files.length, i = -1;
+    while (++i < len) {
+      var fp = files[i];
+      this.addFile(fp, patterns, options);
+    }
+    return this;
+  },
+
+  addFile: function(fp, pattern, options) {
+    var file = toFile(fp, pattern, options);
+    this.handle(file);
+    this.files[fp] = file;
+    return this;
+  },
+
+  handle: function(file) {
+    if (!file.contents) return;
+
+    if (!file.content) {
+      file.content = strip(file.contents.toString());
+    }
+    var len = this.matchers.length, i = -1;
+    if (!len) return this;
+
+    while (++i < len) {
+      var matcher = this.matchers[i];
+      if (!matcher.re.test(file.path)) {
+        continue;
+      }
+      matcher.fn.call(this, file);
+    }
+    return this;
+  },
+
+  matcher: function(re, fn) {
+    this.matchers.push({re: re, fn: fn});
+    return this;
+  },
+
+  filter: function(deps) {
+  },
+
+  union: function(name, val) {
+    union(this.cache, name, arrayify(val));
+    return this;
+  },
+
+  lint: function () {
+
+
+  }
+};
+
+/**
+ * Expose `Lint`
+ */
+
+module.exports = Lint;
+
+
+function arrayify(val) {
+  return Array.isArray(val) ? val : [val];
 }
