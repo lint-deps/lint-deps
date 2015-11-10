@@ -10,6 +10,7 @@ var mm = require('micromatch');
 var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
+var strip = require('strip-comments');
 var pkg = require('load-pkg');
 var _ = require('lodash');
 
@@ -19,7 +20,6 @@ var _ = require('lodash');
 
 var patterns = require('./lib/patterns');
 var custom = require('./lib/custom');
-var strip = require('./lib/strip');
 var utils = require('./lib/utils');
 var find = require('./lib/find');
 var cwd = require('./lib/cwd');
