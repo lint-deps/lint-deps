@@ -4,9 +4,14 @@
 
 process.title = 'lint-deps';
 
+/**
+ * Module dependencies
+ */
+
 var path = require('path');
-var chalk = require('chalk');
+var omit = require('object.omit');
 var wrap = require('word-wrap');
+var gray = require('ansi-gray');
 var extend = require('extend-shallow');
 var argv = require('minimist')(process.argv.slice(2));
 var spawn = require('spawn-commands');
@@ -14,23 +19,27 @@ var filter = require('filter-object');
 var symbol = require('log-symbols');
 var inquirer = require('inquirer');
 var writeJson = require('write-json');
-var pkg = require('load-pkg');
+var pkg = require('load-pkg')(process.cwd());
 var log = require('verbalize');
+
+/**
+ * Local dependencies
+ */
+
 var cwd = require('./lib/cwd');
 var utils = require('./lib/utils');
-
 var question = require('./lib/question');
 var answers = require('./lib/answers');
 var deps = require('./');
 
 var options = {};
-options.dir     = path.resolve(cwd, argv.d || argv.dir || '.');
-options.only    = argv.only || [];
-options.files   = argv.files || [];
-options.clean   = argv.c || argv.clean;
-options.ignore  = argv.i || argv.ignore || [];
-options.report  = argv.r || argv.report;
-options.missingOnly  = argv.m || argv.missing;
+options.dir         = path.resolve(cwd, argv.d || argv.dir || '.');
+options.only        = argv.only || [];
+options.files       = argv.files || [];
+options.clean       = argv.c || argv.clean;
+options.ignore      = argv.i || argv.ignore || [];
+options.report      = argv.r || argv.report;
+options.missingOnly = argv.m || argv.missing;
 
 var res = deps(options.dir, extend(argv, options));
 
@@ -60,7 +69,7 @@ function formatEach(results) {
     var check = symbol.success;
 
     if (missing.length > 0) {
-      check = symbol.error + chalk.gray('  (' + missing.join(', ') + ')');
+      check = symbol.error + gray('  (' + missing.join(', ') + ')');
       if (options.missingOnly) {
         return acc.concat(format(key, check));
       }
@@ -73,7 +82,6 @@ function format(key, check) {
   return log.bold('    · ') + key + ' ' + check;
 }
 
-
 formatEach(res.report.files).forEach(function (ele) {
   console.log(ele);
 });
@@ -83,17 +91,13 @@ var notused = res.notused;
 var missing = res.missing;
 
 if (options.clean) {
-  var omit = notused.map(function (dep) {
-    return '!' + dep;
-  });
-
-  if (pkg.hasOwnProperty('dependencies')) {
-    pkg.dependencies = filter(pkg.dependencies, ['*'].concat(omit));
+  if (pkg.dependencies) {
+    pkg.dependencies = omit(pkg.dependencies, notused);
   }
-  if (pkg.hasOwnProperty('devDependencies')) {
-    pkg.devDependencies = filter(pkg.devDependencies, ['*'].concat(omit));
+  if (pkg.devDependencies) {
+    pkg.devDependencies = omit(pkg.devDependencies, notused);
   }
-  writeJson('package.json', pkg);
+  writeJson.sync('package.json', pkg);
 }
 
 // Prompts
