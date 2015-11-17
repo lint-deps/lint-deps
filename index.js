@@ -11,7 +11,7 @@ var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
 var strip = require('strip-comments');
-var pkg = require('load-pkg');
+var pkg = require('load-pkg')(process.cwd());
 var _ = require('lodash');
 
 /**
@@ -106,6 +106,27 @@ module.exports = function(dir, options) {
   if (hasVerb && notused.indexOf('verb') !== -1) {
     notused = _.difference(notused, ['verb']);
   }
+
+  /**
+   * Scour `scripts` for references to "unused" deps
+   */
+
+  var scripts = {};
+  if (pkg.scripts && typeof pkg.scripts === 'object') {
+    scripts = pkg.scripts;
+  }
+
+  for (var key in pkg.scripts) {
+    var val = pkg.scripts[key];
+    var len = notused.length;
+    while (len--) {
+      var nu = notused[len];
+      if (val.indexOf(nu) !== -1) {
+        notused.splice(len, 1);
+      }
+    }
+  }
+
 
   var missing = requires.filter(function(req) {
     return deps.indexOf(req) === -1;
