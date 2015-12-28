@@ -1,7 +1,7 @@
 {
   "name": "lint-deps",
   "description": "CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "homepage": "https://github.com/jonschlinkert/lint-deps",
   "author": "Jon Schlinkert (https://github.com/jonschlinkert)",
   "repository": "jonschlinkert/lint-deps",
@@ -10,8 +10,8 @@
   },
   "license": "MIT",
   "files": [
-    "index.js",
     "cli.js",
+    "index.js",
     "lib/"
   ],
   "main": "index.js",
@@ -24,26 +24,25 @@
     "ansi-red": "^0.1.1",
     "arr-flatten": "^1.0.1",
     "array-unique": "^0.2.1",
-    "commandments": "^0.2.3",
+    "commandments": "^0.2.4",
     "extend-shallow": "^2.0.1",
     "filter-object": "^2.1.0",
-    "get-value": "^2.0.0",
-    "inquirer": "^0.11.0",
-    "load-pkg": "^2.0.1",
+    "get-value": "^2.0.2",
+    "inquirer2": "github:jonschlinkert/inquirer2",
+    "load-pkg": "^3.0.1",
     "lodash": "^3.10.1",
     "log-symbols": "^1.0.2",
-    "look-up": "^0.8.1",
     "match-requires": "^1.0.0",
-    "micromatch": "^2.3.2",
+    "micromatch": "^2.3.7",
     "minimist": "^1.2.0",
     "object.omit": "^2.0.0",
     "parse-gitignore": "^0.2.0",
     "regexp-special-chars": "^0.1.0",
     "spawn-commands": "^0.3.1",
-    "strip-comments": "^0.4.1",
+    "strip-comments": "^0.4.3",
     "verbalize": "^0.1.2",
     "word-wrap": "^1.1.0",
-    "write-json": "^0.2.1"
+    "write-json": "^0.2.2"
   },
   "keywords": [
     "dep",
@@ -63,11 +62,14 @@
   "verb": {
     "related": {
       "list": [
-        "lookup-deps",
         "list-deps",
-        "spawn-commands",
-        "resolve-dep"
+        "lookup-deps",
+        "resolve-dep",
+        "spawn-commands"
       ]
-    }
+    },
+    "reflinks": [
+      "template"
+    ]
   }
 }
