@@ -38,7 +38,7 @@ module.exports = function(dir, options) {
   var userDefined = extend({requires: [], ignored: [], only: []}, options);
   var files = readFiles(dir, options);
   var report = {};
-  var requires = _.reduce(files, function (acc, value) {
+  var requires = _.reduce(files, function(acc, value) {
     var commands = parseCommands(value.content);
 
     userDefined.requires = _.union(userDefined.requires, commands.required || []);
@@ -129,7 +129,7 @@ module.exports = function(dir, options) {
       var val = pkg.scripts[key];
       var idx = notused.indexOf(val);
       if (idx !== -1) {
-        notused.splice(len, 1);
+        notused.splice(idx, 1);
       }
     }
   }
