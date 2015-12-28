@@ -17,9 +17,9 @@ var argv = require('minimist')(process.argv.slice(2));
 var spawn = require('spawn-commands');
 var filter = require('filter-object');
 var symbol = require('log-symbols');
-var inquirer = require('inquirer');
+var inquirer2 = require('inquirer2');
 var writeJson = require('write-json');
-var pkg = require('load-pkg')(process.cwd());
+var pkg = require('load-pkg').sync(process.cwd());
 var log = require('verbalize');
 
 /**
@@ -138,6 +138,8 @@ if(missing.length === 0) {
     message: log.bold('Want to select packages to install?'),
     default: false
   });
+
+  var inquirer = inquirer2();
 
   // Generate questions based on missing deps.
   prompts = prompts.concat(question(missing, inquirer));

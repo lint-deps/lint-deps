@@ -11,7 +11,7 @@ var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
 var strip = require('strip-comments');
-var pkg = require('load-pkg')(process.cwd());
+var pkg = require('load-pkg').sync(process.cwd());
 var _ = require('lodash');
 
 /**
