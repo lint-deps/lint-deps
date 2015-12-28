@@ -75,7 +75,6 @@ module.exports = function(dir, options) {
       var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
       var excl = patterns.builtins;
 
-
       if (name && excl.indexOf(name) !== -1) {
         continue;
       }
@@ -102,31 +101,38 @@ module.exports = function(dir, options) {
   requires = _.union(requires, userDefined.requires);
   deps = _.union(deps, userDefined.ignored);
 
+  var plugins = verbProp(pkg, 'plugins');
+  var helpers = verbProp(pkg, 'helpers');
+  var middleware = verbProp(pkg, 'use');
+
+  addMissing(requires, plugins);
+  addMissing(requires, helpers);
+  addMissing(requires, middleware);
+
   var notused = _.difference(deps, requires);
   if (hasVerb && notused.indexOf('verb') !== -1) {
     notused = _.difference(notused, ['verb']);
   }
 
+  removeUnused(notused, plugins);
+  removeUnused(notused, helpers);
+  removeUnused(notused, middleware);
+
   /**
-   * Scour `scripts` for references to "unused" deps
+   * Look through `scripts` for references to "unused" deps
+   * this is really just a placeholder for lint-deps v2.0
+   * which has better logic for this.
    */
 
-  var scripts = {};
-  if (pkg.scripts && typeof pkg.scripts === 'object') {
-    scripts = pkg.scripts;
-  }
-
-  for (var key in pkg.scripts) {
-    var val = pkg.scripts[key];
-    var len = notused.length;
-    while (len--) {
-      var nu = notused[len];
-      if (val.indexOf(nu) !== -1) {
+  if (pkg.hasOwnProperty('scripts')) {
+    for (var key in pkg.scripts) {
+      var val = pkg.scripts[key];
+      var idx = notused.indexOf(val);
+      if (idx !== -1) {
         notused.splice(len, 1);
       }
     }
   }
-
 
   var missing = requires.filter(function(req) {
     return deps.indexOf(req) === -1;
@@ -149,12 +155,12 @@ module.exports = function(dir, options) {
   rpt.notused = _.difference(notused, userDefined.ignored);
   rpt.files = report;
 
-  var o = {report: rpt};
+  var o = { report: rpt };
   // modules that are actually required
   o.requires = requires;
   // modules that are listed in package.json, but not used
   o.notused = rpt.notused;
-  // modules that are actaully required, but missing from package.json
+  // modules that are actually required, but missing from package.json
   o.missing = missing;
   return o;
 };
@@ -247,6 +253,71 @@ function depsKeys(pkg, type) {
   return deps
     ? Object.keys(deps)
     : [];
+}
+
+/**
+ * Remove elements from the `notused` array
+ */
+
+function removeUnused(notused, val) {
+  if (!val) return;
+
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    val = Object.keys(val);
+  }
+
+  if (!Array.isArray(val)) {
+    return;
+  }
+
+  var len = val.length;
+  while (len--) {
+    var idx = notused.indexOf(val[len]);
+    if (idx !== -1) {
+      notused.splice(idx, 1);
+    }
+  }
+}
+
+/**
+ * Add missing deps to the `deps` array
+ */
+
+function addMissing(deps, val) {
+  if (!val) return;
+
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    val = Object.keys(val);
+  }
+
+  if (!Array.isArray(val)) {
+    return;
+  }
+
+  var len = val.length;
+  while (len--) {
+    if (deps.indexOf(val[len]) === -1) {
+      deps.push(val[len]);
+    }
+  }
+}
+
+/**
+ * Return an array of keys for the dependencies
+ * in package.json
+ */
+
+function verbProp(pkg, prop) {
+  var verb = pkg.verb || {};
+  if (!verb[prop]) {
+    return [];
+  }
+  if (Array.isArray(verb[prop])) {
+    return verb[prop];
+  }
+  if (typeof verb[prop] === 'object') {
+    return Object.keys(verb[prop]);
+  }
 }
 
 /**
