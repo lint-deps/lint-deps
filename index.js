@@ -11,13 +11,13 @@ var extend = require('extend-shallow');
 var commandments = require('commandments');
 var findRequires = require('match-requires');
 var strip = require('strip-comments');
-var pkg = require('load-pkg').sync(process.cwd());
 var _ = require('lodash');
 
 /**
  * Local dependencies
  */
 
+var pkg = require(require('./lib/pkg'));
 var patterns = require('./lib/patterns');
 var custom = require('./lib/custom');
 var utils = require('./lib/utils');
@@ -30,6 +30,10 @@ var cwd = require('./lib/cwd');
 
 module.exports = function(dir, options) {
   options = options || {};
+
+  if (pkg['lint-deps'] && pkg['lint-deps'].ignore) {
+    options.ignore = options.ignore.concat(pkg['lint-deps'].ignore);
+  }
 
   // TODO: maybe expose the exclusions for pkg
   var deps = dependencies(pkg)('*');
@@ -93,7 +97,10 @@ module.exports = function(dir, options) {
 
     report[file.path] = file;
     return _.uniq(acc.concat(res));
-  }, []).sort();
+  }, []);
+
+  requires.sort();
+  deps.sort();
 
   var hasVerb = fs.existsSync(path.resolve('.verb.md'));
 
@@ -135,6 +142,9 @@ module.exports = function(dir, options) {
   }
 
   var missing = requires.filter(function(req) {
+    if (req === pkg.name) {
+      return false;
+    }
     return deps.indexOf(req) === -1;
   });
 
@@ -179,7 +189,7 @@ function readFiles(dir, options) {
   var files = [];
 
   if (options.only && options.only.length) {
-    files = mm(files, utils.arrayify(options.only));
+    files = mm(files, utils.arrayify(options.only), options);
   } else if (pkg.hasOwnProperty('files') && options.files) {
     files = pkg.files;
     if (pkg.main) files.push(pkg.main);
@@ -296,8 +306,13 @@ function addMissing(deps, val) {
 
   var len = val.length;
   while (len--) {
-    if (deps.indexOf(val[len]) === -1) {
-      deps.push(val[len]);
+    var str = val[len];
+    if (/^\./.test(str)) {
+      continue;
+    }
+
+    if (deps.indexOf(str) === -1) {
+      deps.push(str);
     }
   }
 }

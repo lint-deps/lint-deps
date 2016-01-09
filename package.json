@@ -27,12 +27,13 @@
     "commandments": "^0.2.4",
     "extend-shallow": "^2.0.1",
     "filter-object": "^2.1.0",
+    "find-pkg": "^0.1.1",
     "get-value": "^2.0.2",
     "inquirer2": "github:jonschlinkert/inquirer2",
     "load-pkg": "^3.0.1",
     "lodash": "^3.10.1",
     "log-symbols": "^1.0.2",
-    "match-requires": "^1.0.0",
+    "match-requires": "^1.0.1",
     "micromatch": "^2.3.7",
     "minimist": "^1.2.0",
     "object.omit": "^2.0.0",
@@ -59,6 +60,9 @@
     "required",
     "requires"
   ],
+  "lint-deps": {
+    "ignore": ["tmp", "lib"]
+  },
   "verb": {
     "related": {
       "list": [
