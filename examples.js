@@ -1,53 +1,73 @@
 
 var requires = require('match-requires');
-var Lint = require('./');
-var lint = new Lint();
+var LintDeps = require('./');
+var deps = new LintDeps();
 
-// lint.option('a', 'b');
+// deps.option('a', 'b');
 
-lint.require({module: 'a'});
-lint.require({module: 'b'});
-lint.require({module: 'c'});
+deps.require({module: 'a'});
+deps.require({module: 'b'});
+deps.require({module: 'c'});
 
-lint.exclude('one');
-lint.exclude('two');
-lint.exclude('three');
+deps.exclude('one');
+deps.exclude('two');
+deps.exclude('three');
 
-lint.include('alpha');
-lint.include('beta');
-lint.include('gamma');
+deps.include('alpha');
+deps.include('beta');
+deps.include('gamma');
 
-lint.unused('foo');
-lint.unused('bar');
-lint.unused('baz');
-lint.unused('baz');
-lint.unused('baz');
-lint.unused('baz');
+deps
+  .unused('foo')
+  .unused('bar')
+  .unused('baz')
+  .unused('baz')
+  .unused('baz')
+  .unused('baz')
+  .unused('browserify')
+  .unused('mocha');
 
-lint
+deps
   .ignore('{tmp,temp}/**')
   .ignore('vendor/**')
   .ignore('node_modules/**');
 
-lint.matcher(/package\.json$/, function(file) {
-  file.data = require(file.path);
-  this.deps(file.data.dependencies);
-  this.devDeps(file.data.devDependencies);
+deps.matcher(/package\.json$/, function(file) {
+  this.deps(file.json.dependencies);
+  this.devDeps(file.json.devDependencies);
+      console.log(this.cache)
+  return file;
 });
 
-lint.matcher(/\.js$/, function(file) {
+deps.matcher(/package\.json$/, function(file) {
+  if (file.json.hasOwnProperty('scripts')) {
+    for (var key in file.json.scripts) {
+      var script = file.json.scripts[key];
+      var matches = this.matches('unused', script);
+      if (matches) {
+        this.del('unused', matches);
+      }
+    }
+  }
+  return file;
+});
+
+deps.matcher(/\.js$/, function(file) {
   file.requires = requires(file.content);
   this.requires(file.requires);
 });
 
-lint
-  .addFiles('*.json')
-  .addFiles('**/*.js');
+deps.use(function fn(file) {
+  if (!file.isFile) return fn;
+  if (file.isMatch(/\.json$/)) {
 
-console.log(lint.files)
+  }
+});
+
+deps.addFiles(['*.json', '**/*.js']);
 
 var gruntRe = /grunt\.loadNpmTasks\(['"]([^'"]+?)['"]\)/;
 var htmlRe = /<!--\s*(?:require|deps):((?:[^-]+|-[^-]+)*?)-->/;
 
 
-// console.log(lint)
+// console.log(deps)
