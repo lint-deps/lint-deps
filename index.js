@@ -3,6 +3,20 @@
 var base = require('base');
 var Base = base.namespace('cache');
 var utils = require('./lib/utils');
+var cli = require('./lib/cli');
+
+/**
+ * Create an instance of `LintDeps` with the given `options`
+ *
+ * ```js
+ * var LintDeps = require('lint-deps');
+ * var deps = new LintDeps();
+ * deps.lint('...');
+ * ```
+ *
+ * @param {Object} `options`
+ * @api public
+ */
 
 function Lint(options) {
   if (!(this instanceof Lint)) {
@@ -11,33 +25,8 @@ function Lint(options) {
 
   Base.call(this);
   this.is('lintDeps');
-
   this.options = options || {};
-  this
-    .use(utils.plugin())
-    .use(utils.config())
-    .use(utils.cli());
-
-  this.errors = {};
-  this.matchers = [];
-  this.files = {};
-
-  this.cache = {
-    varmap: {},
-    dependencies: [],
-    devDependencies: [],
-    requires: {
-      local: [],
-      npm: []
-    },
-    includes: [],
-    excludes: [],
-    ignores: [],
-    filters: [],
-    unused: []
-  };
-
-  this.initMethods();
+  this.init(this);
 }
 
 /**
@@ -47,18 +36,47 @@ function Lint(options) {
 Base.extend(Lint, {
   constructor: Lint,
 
-  /**
-   * Placeholder for real message handling
-   */
+  init: function(app) {
+    this.use(utils.plugin())
+      .use(utils.config())
+      .use(cli());
 
-  error: function(id, msg) {
-    this.errors[id] = this.errors[id] || [];
-    this.errors[id].push(msg);
-    return this;
+    this.initConfig();
+    this.initMethods();
+    this.on('set', function(key, val) {
+      if (key === 'argv') {
+        app.cli.process(val);
+      }
+    });
   },
 
   /**
-   * Init methods
+   * Initialize lint-deps configuration objects.
+   */
+
+  initConfig: function() {
+    this.errors = {};
+    this.matchers = [];
+    this.files = {};
+
+    this.cache = {
+      varmap: {},
+      dependencies: [],
+      devDependencies: [],
+      requires: {
+        local: [],
+        npm: []
+      },
+      includes: [],
+      excludes: [],
+      ignores: [],
+      filters: [],
+      unused: []
+    };
+  },
+
+  /**
+   * Initialize methods
    */
 
   initMethods: function() {
@@ -68,11 +86,30 @@ Base.extend(Lint, {
     this.mixinMethod('unused', 'unused');
   },
 
+  /**
+   * Mix a method onto the `LintDeps` prototype. Used for
+   * initializing methods that are paired with storage arrays.
+   *
+   * @param {String} `singular`
+   * @param {String} `plural`
+   * @return {undefined}
+   */
+
   mixinMethod: function(singular, plural) {
-    Lint.prototype[singular] = function(pattern) {
-      this.union(plural, pattern);
+    Lint.prototype[singular] = function(items) {
+      this.union(plural, items);
       return this;
     };
+  },
+
+  /**
+   * Placeholder for real message handling
+   */
+
+  error: function(id, msg) {
+    this.errors[id] = this.errors[id] || [];
+    this.errors[id].push(msg);
+    return this;
   },
 
   /**
