@@ -1,9 +1,12 @@
 'use strict';
 
+var path = require('path');
 var base = require('base');
 var Base = base.namespace('cache');
-var utils = require('./lib/utils');
 var cli = require('./lib/cli');
+var gitignore = require('./lib/gitignore');
+var lint = require('./lint');
+var utils = require('./lib/utils');
 
 /**
  * Create an instance of `LintDeps` with the given `options`
@@ -18,9 +21,9 @@ var cli = require('./lib/cli');
  * @api public
  */
 
-function Lint(options) {
-  if (!(this instanceof Lint)) {
-    return new Lint(options);
+function LintDeps(options) {
+  if (!(this instanceof LintDeps)) {
+    return new LintDeps(options);
   }
 
   Base.call(this);
@@ -33,19 +36,24 @@ function Lint(options) {
  * Inherit `Base`
  */
 
-Base.extend(Lint, {
-  constructor: Lint,
+Base.extend(LintDeps, {
+  constructor: LintDeps,
 
   init: function(app) {
-    this.use(utils.plugin())
+    this
+      .use(utils.option())
+      .use(utils.plugin())
       .use(utils.config())
+      .use(utils.store())
+      .use(utils.ask())
       .use(cli());
 
     this.initConfig();
     this.initMethods();
-    this.on('set', function(key, val) {
-      if (key === 'argv') {
-        app.cli.process(val);
+
+    this.on('option', function(key, val) {
+      if (key === 'lint') {
+        app.lint(key, val);
       }
     });
   },
@@ -64,6 +72,7 @@ Base.extend(Lint, {
       dependencies: [],
       devDependencies: [],
       requires: {
+        builtin: [],
         local: [],
         npm: []
       },
@@ -80,14 +89,16 @@ Base.extend(Lint, {
    */
 
   initMethods: function() {
-    this.mixinMethod('ignore', 'ignores');
     this.mixinMethod('include', 'includes');
     this.mixinMethod('exclude', 'excludes');
     this.mixinMethod('unused', 'unused');
+    this.mixinMethod('ignore', 'ignores', function(items) {
+      return items.map(gitignore.toGlob);
+    });
   },
 
   /**
-   * Mix a method onto the `LintDeps` prototype. Used for
+   * Mix a method onto the `LintDepsDeps` prototype. Used for
    * initializing methods that are paired with storage arrays.
    *
    * @param {String} `singular`
@@ -95,8 +106,11 @@ Base.extend(Lint, {
    * @return {undefined}
    */
 
-  mixinMethod: function(singular, plural) {
-    Lint.prototype[singular] = function(items) {
+  mixinMethod: function(singular, plural, fn) {
+    LintDeps.prototype[singular] = function(items) {
+      if (typeof fn === 'function') {
+        items = fn(items);
+      }
       this.union(plural, items);
       return this;
     };
@@ -140,6 +154,7 @@ Base.extend(Lint, {
     while (len--) {
       arr.splice(arr.indexOf(keys[len]), 1);
     }
+    return arr;
   },
 
   /**
@@ -244,14 +259,16 @@ Base.extend(Lint, {
    */
 
   addFiles: function(patterns, options) {
-    var opts = utils.extend({}, options);
+    var opts = utils.extend({}, this.options, options);
     utils.union(opts, 'ignore', this.get('ignores'));
+
     var files = utils.glob.sync(patterns, opts);
     var len = files.length;
     var idx = -1;
 
     while (++idx < len) {
-      this.addFile(files[idx], patterns, opts);
+      var file = files[idx];
+      this.addFile(file, patterns, opts);
     }
     return this;
   },
@@ -271,11 +288,10 @@ Base.extend(Lint, {
       }
       matcher.fn.call(this, file);
     }
-
     return file;
   },
 
-  addMatcher: function(re, fn) {
+  register: function(re, fn) {
     this.matchers.push({re: re, fn: fn});
     return this;
   },
@@ -286,7 +302,7 @@ Base.extend(Lint, {
       this.union('dependencies', keys);
       return this;
     }
-    if (typeof deps === 'string') {
+    if (Array.isArray(deps) || typeof deps === 'string') {
       this.union('dependencies', deps);
     }
     return this;
@@ -298,7 +314,7 @@ Base.extend(Lint, {
       this.union('devDependencies', keys);
       return this;
     }
-    if (typeof deps === 'string') {
+    if (Array.isArray(deps) || typeof deps === 'string') {
       this.union('devDependencies', deps);
     }
     return this;
@@ -308,11 +324,15 @@ Base.extend(Lint, {
     if (typeof pattern === 'string') {
       pattern = { module: pattern };
     }
-    var mod = pattern.module;
-    if (mod.charAt(0) === '.') {
-      this.union('requires.local', mod);
+    var name = pattern.module;
+    if (utils.isLocalModule(name)) {
+      this.union('requires.local', name);
+
+    } else if (utils.isBuiltin(name)) {
+      this.union('requires.builtin', name);
+
     } else {
-      this.union('requires.npm', mod);
+      this.union('requires.npm', name);
     }
     return this;
   },
@@ -325,21 +345,65 @@ Base.extend(Lint, {
     return this;
   },
 
-  filter: function(deps) {
-  },
-
   union: function(name, val) {
     utils.union(this.cache, name, utils.arrayify(val));
     return this;
   },
 
   lint: function(dir) {
+    var ignore = this.settings.ignore || [];
+    this.ignore(gitignore(this.cwd));
+    lint.call(this, this);
+    return this;
+  }
+});
 
+Object.defineProperty(LintDeps.prototype, 'settings', {
+  set: function(val) {
+    this.define('_settings', val);
+  },
+  get: function() {
+    var settings = this._settings || this.pkg['lint-deps'] || {};
+    return utils.merge({}, this.options, settings);
   }
 });
 
 /**
- * Expose `Lint`
+ * Ensure `name` is set on the instance for lookups.
  */
 
-module.exports = Lint;
+Object.defineProperty(LintDeps.prototype, 'cwd', {
+  configurable: true,
+  set: function(cwd) {
+    this.options.cwd = path.resolve(cwd);
+  },
+  get: function() {
+    return path.resolve(this.options.cwd || process.cwd());
+  }
+});
+
+Object.defineProperty(LintDeps.prototype, 'pkgPath', {
+  set: function(fp) {
+    this.define('_pkgPath', fp);
+  },
+  get: function() {
+    if (!this._pkgPath) this.define('_pkgPath', null);
+    return this._pkgPath || (this._pkgPath = utils.pkgPath.sync(this.cwd));
+  }
+});
+
+Object.defineProperty(LintDeps.prototype, 'pkg', {
+  set: function(val) {
+    this.define('_pkg', val);
+  },
+  get: function() {
+    if (!this._pkg) this.define('_pkg', null);
+    return this._pkg || (this._pkg = require(utils.pkgPath.sync(this.cwd)));
+  }
+});
+
+/**
+ * Expose `LintDeps`
+ */
+
+module.exports = LintDeps;

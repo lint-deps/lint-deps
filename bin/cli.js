@@ -8,14 +8,30 @@ var argv = require('minimist')(process.argv.slice(2), {
   alias: {verbose: 'v'}
 });
 
+var isEmpty = Object.keys(argv).length === 1 && argv._.length === 0;
+if (isEmpty) {
+  deps.enable('lint');
+}
+
+/**
+ * Init questions
+ */
+
+deps.questions
+  .set('init.config', 'Would you like to setup your global lint-deps config?');
+
+/**
+ * Set `argv` on the instance
+ */
+
 deps.set('argv', expand(argv));
-// deps.cli.process(deps.get('argv'));
 
-console.log(deps)
-// function run(cb) {
-//   cb(null, {});
-// }
+/**
+ * If `--ask` or `--init` is passed, ask init questions
+ */
 
-// run(function(err, env) {
-
-// });
+if (deps.option('questions.init')) {
+  deps.ask('init', function(err, answers) {
+    console.log(answers)
+  });
+}

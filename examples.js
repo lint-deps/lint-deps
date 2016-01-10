@@ -32,14 +32,13 @@ deps
   .ignore('vendor/**')
   .ignore('node_modules/**');
 
-deps.matcher(/package\.json$/, function(file) {
+deps.register(/package\.json$/, function(file) {
   this.deps(file.json.dependencies);
   this.devDeps(file.json.devDependencies);
-      console.log(this.cache)
   return file;
 });
 
-deps.matcher(/package\.json$/, function(file) {
+deps.register(/package\.json$/, function(file) {
   if (file.json.hasOwnProperty('scripts')) {
     for (var key in file.json.scripts) {
       var script = file.json.scripts[key];
@@ -52,7 +51,7 @@ deps.matcher(/package\.json$/, function(file) {
   return file;
 });
 
-deps.matcher(/\.js$/, function(file) {
+deps.register(/\.js$/, function(file) {
   file.requires = requires(file.content);
   this.requires(file.requires);
 });
