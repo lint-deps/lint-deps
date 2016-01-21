@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
-'use strict';
-
-process.title = 'lint-deps';
+// process.title = 'lint-deps';
 
 /**
  * Module dependencies
@@ -82,7 +80,7 @@ function format(key, check) {
   return log.bold('    · ') + key + ' ' + check;
 }
 
-formatEach(res.report.files).forEach(function (ele) {
+formatEach(res.report.files).forEach(function(ele) {
   console.log(ele);
 });
 
@@ -147,7 +145,7 @@ if(missing.length === 0) {
   // Generate the list of missing dependencies
   // to allow the user to select which ones to
   // install
-  inquirer.prompt(prompts, function (answer) {
+  inquirer.prompt(prompts, function(answer) {
     if(answer.install === true) {
       spawn(answers(answer));
     } else {

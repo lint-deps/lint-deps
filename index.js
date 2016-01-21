@@ -7,8 +7,9 @@
 var fs = require('fs');
 var path = require('path');
 var mm = require('micromatch');
+var get = require('get-value');
 var extend = require('extend-shallow');
-var commandments = require('commandments');
+var configComments = require('config-comments');
 var findRequires = require('match-requires');
 var strip = require('strip-comments');
 var _ = require('lodash');
@@ -20,6 +21,7 @@ var _ = require('lodash');
 var pkg = require(require('./lib/pkg'));
 var patterns = require('./lib/patterns');
 var custom = require('./lib/custom');
+var ignore = require('./lib/ignore');
 var utils = require('./lib/utils');
 var find = require('./lib/find');
 var cwd = require('./lib/cwd');
@@ -29,18 +31,22 @@ var cwd = require('./lib/cwd');
  */
 
 module.exports = function(dir, options) {
-  options = options || {};
+  var opts = extend({}, options);
+  opts.ignore = ignore.gitignore(cwd);
 
-  if (pkg['lint-deps'] && pkg['lint-deps'].ignore) {
-    options.ignore = options.ignore.concat(pkg['lint-deps'].ignore);
+  var config = get(pkg, 'lint-deps') || get(pkg, 'lintDeps');
+  if (config && config.ignore) {
+    opts.ignore = opts.ignore.concat(ignore.toGlobs(config.ignore));
   }
+  opts.cwd = dir;
 
   // TODO: maybe expose the exclusions for pkg
   var deps = dependencies(pkg)('*');
 
   // allow the user to define exclusions
-  var userDefined = extend({requires: [], ignored: [], only: []}, options);
-  var files = readFiles(dir, options);
+  var userDefined = extend({requires: [], ignored: [], only: []}, opts);
+
+  var files = toFiles(utils.glob.sync('**/*.js', opts));
   var report = {};
   var requires = _.reduce(files, function(acc, value) {
     var commands = parseCommands(value.content);
@@ -175,6 +181,27 @@ module.exports = function(dir, options) {
   return o;
 };
 
+function toFiles(files) {
+  var len = files.length;
+  var idx = -1;
+
+  if (!len) return [];
+  var res = [];
+
+  while (++idx < len) {
+    var fp = files[idx];
+    if (fs.statSync(fp).isDirectory()) {
+      continue;
+    }
+
+    var file = {};
+    file.path = path.relative(cwd, fp);
+    file.content = fs.readFileSync(fp, 'utf8');
+    res.push(file);
+  }
+  return res;
+}
+
 /**
  * Read files and return an object with path and content.
  *
@@ -226,7 +253,7 @@ function readFiles(dir, options) {
 function parseCommands(str) {
   if (!str) { return []; }
 
-  var commands = commandments(['deps', 'require'], str || '');
+  var commands = configComments(['deps'], str || '');
   return _.reduce(commands, function(acc, res) {
     acc.required = acc.required || [];
     acc.ignored = acc.ignored || [];
