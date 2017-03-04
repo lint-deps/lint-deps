@@ -1,390 +1,110 @@
 'use strict';
 
-/**
- * Module dependencies
- */
-
 var fs = require('fs');
 var path = require('path');
-var mm = require('micromatch');
-var get = require('get-value');
-var extend = require('extend-shallow');
-var configComments = require('config-comments');
-var findRequires = require('match-requires');
-var strip = require('strip-comments');
-var _ = require('lodash');
-
-/**
- * Local dependencies
- */
-
-var pkg = require(require('./lib/pkg'));
-var patterns = require('./lib/patterns');
-var custom = require('./lib/custom');
-var ignore = require('./lib/ignore');
+var del = require('delete');
+var Enquirer = require('enquirer');
+var enquirer = new Enquirer();
 var utils = require('./lib/utils');
-var find = require('./lib/find');
-var cwd = require('./lib/cwd');
+var actions = require('./lib/actions');
+var prompts = require('./lib/prompts');
+var plugins = require('./plugins');
+var app = require('./lib/app');
 
 /**
- * Config
+ * Help
  */
 
-module.exports = function(dir, options) {
-  var opts = extend({}, options);
-  opts.ignore = ignore.gitignore(cwd);
-
-  var config = get(pkg, 'lint-deps') || get(pkg, 'lintDeps');
-  if (config && config.ignore) {
-    opts.ignore = opts.ignore.concat(ignore.toGlobs(config.ignore));
-  }
-  opts.cwd = dir;
-
-  // TODO: maybe expose the exclusions for pkg
-  var deps = dependencies(pkg)('*');
-
-  // allow the user to define exclusions
-  var userDefined = extend({requires: [], ignored: [], only: []}, opts);
-
-  var files = toFiles(utils.glob.sync('**/*.js', opts));
-  var report = {};
-  var requires = _.reduce(files, function(acc, value) {
-    var commands = parseCommands(value.content);
-
-    userDefined.requires = _.union(userDefined.requires, commands.required || []);
-    userDefined.ignored = _.union(userDefined.ignored, commands.ignored || []);
-
-    value.content = value.content.replace(/#!\/usr[^\n]+/, '');
-    value.content = strip(value.content);
-
-    var results = [];
-    if (value.path !== '.verb.md') {
-      results = findRequires(value.content);
-    }
-
-    // placeholder for custom matchers
-    var matchers = [];
-    var matches = custom(value.content, matchers);
-    if (matches) {
-      results = results.concat(matches);
-    }
-
-    var file = {};
-    file.path = value.path;
-    file.requires = [];
-
-    var len = results.length;
-    var res = [];
-    var i = -1;
-
-    while (++i < len) {
-      var ele = results[i];
-      // account for lazily-required module dependencies with asliases
-      ele.module = ele.module.split(/['"],\s*['"]/)[0].trim();
-      var name = ele.module;
-      var regex = /^\.|\{/; // see https://github.com/jonschlinkert/lint-deps/issues/8
-      var excl = patterns.builtins;
-
-      if (name && excl.indexOf(name) !== -1) {
-        continue;
-      }
-
-      if (name && mm.any(name, excl.concat(regex))) {
-        continue;
-      }
-
-      // see: https://github.com/jonschlinkert/lint-deps/issues/8
-      name = name.split(/[\\\/]/)[0];
-
-      ele.line = ele.line - 1;
-      file.requires.push(ele);
-      res.push(name);
-    }
-
-    report[file.path] = file;
-    return _.uniq(acc.concat(res));
-  }, []);
-
-  requires.sort();
-  deps.sort();
-
-  var hasVerb = fs.existsSync(path.resolve('.verb.md'));
-
-  // Add user-defined values
-  requires = _.union(requires, userDefined.requires);
-  deps = _.union(deps, userDefined.ignored);
-
-  var plugins = verbProp(pkg, 'plugins');
-  var helpers = verbProp(pkg, 'helpers');
-  var middleware = verbProp(pkg, 'use');
-
-  addMissing(requires, plugins);
-  addMissing(requires, helpers);
-  addMissing(requires, middleware);
-
-  var notused = _.difference(deps, requires);
-  if (hasVerb && notused.indexOf('verb') !== -1) {
-    notused = _.difference(notused, ['verb']);
-  }
-
-  removeUnused(notused, plugins);
-  removeUnused(notused, helpers);
-  removeUnused(notused, middleware);
-
-  /**
-   * Look through `scripts` for references to "unused" deps
-   * this is really just a placeholder for lint-deps v2.0
-   * which has better logic for this.
-   */
-
-  if (pkg.hasOwnProperty('scripts')) {
-    for (var key in pkg.scripts) {
-      var val = pkg.scripts[key];
-      var idx = notused.indexOf(val);
-      if (idx !== -1) {
-        notused.splice(idx, 1);
-      }
-    }
-  }
-
-  var missing = requires.filter(function(req) {
-    if (req === pkg.name) {
-      return false;
-    }
-    return deps.indexOf(req) === -1;
-  });
-
-  // Build `report`
-  _.transform(report, function(acc, value, fp) {
-    value.missing = [];
-    _.forIn(value.requires, function(obj) {
-      var i = missing.indexOf(obj.module);
-      value.missing = value.missing.concat(i !== -1 ? missing[i] : []);
-    });
-    value.missing = _.uniq(value.missing);
-    acc[fp] = value;
-  });
-
-  var rpt = {};
-
-  rpt.missing = missing;
-  rpt.notused = _.difference(notused, userDefined.ignored);
-  rpt.files = report;
-
-  var o = { report: rpt };
-  // modules that are actually required
-  o.requires = requires;
-  // modules that are listed in package.json, but not used
-  o.notused = rpt.notused;
-  // modules that are actually required, but missing from package.json
-  o.missing = missing;
-  return o;
-};
-
-function toFiles(files) {
-  var len = files.length;
-  var idx = -1;
-
-  if (!len) return [];
-  var res = [];
-
-  while (++idx < len) {
-    var fp = files[idx];
-    if (fs.statSync(fp).isDirectory()) {
-      continue;
-    }
-
-    var file = {};
-    file.path = path.relative(cwd, fp);
-    file.content = fs.readFileSync(fp, 'utf8');
-    res.push(file);
-  }
-  return res;
-}
+app.task('help', function() {
+  return enquirer.ask('help');
+});
 
 /**
- * Read files and return an object with path and content.
- *
- * @param {String} `dir` current working directory
- * @param {Array} `ignore` Ignore patterns.
- * @return {Object}
- * @api private
+ * Requires
  */
 
-function readFiles(dir, options) {
-  options = options || [];
-  var files = [];
+app.task('requires', function() {
+  return app.src(app.options.patterns, app.options)
+    .pipe(plugins.stripComments())
+    .pipe(plugins.requires(app))
+    .on('end', function() {
+      enquirer.use(prompts(app));
+    })
+});
 
-  if (options.only && options.only.length) {
-    files = mm(files, utils.arrayify(options.only), options);
-  } else if (pkg.hasOwnProperty('files') && options.files) {
-    files = pkg.files;
-    if (pkg.main) files.push(pkg.main);
-    if (options.include) {
-      files = files.concat(options.include.split(/[,\s]+/));
+/**
+ * Delete node_modules
+ */
+
+app.task('fresh', function(cb) {
+  // delete devDeps and deps, then node_modules
+  del(path.join(app.cwd, 'node_modules'), cb);
+});
+
+/**
+ * Delete dependencies from package.json
+ */
+
+app.task('update', function(cb) {
+  var pkg = utils.extend({}, app.pkg.data);
+  var obj = {};
+
+  for (var key in pkg) {
+    // strip all "*dependencies" properties
+    if (pkg.hasOwnProperty(key) && !/dependencies/i.test(key)) {
+      obj[key] = pkg[key];
     }
-    files = utils.lookupEach(files);
-  } else {
-    files = find(dir, options);
   }
 
-  files = find(dir, options);
-  var len = files.length;
-  var res = [];
-
-  while (len--) {
-    var fp = files[len];
-    var file = {};
-    file.path = path.relative(cwd, fp.split('\\').join('/'));
-    file.content = fs.readFileSync(fp, 'utf8');
-    res.push(file);
-  }
-  return res;
-}
+  fs.writeFile(app.pkg.path, JSON.stringify(obj, null, 2), cb);
+});
 
 /**
- * Parse commands/arguments from code comments.
- *
- * @param {String} str
- * @return {Array}
- * @api private
+ * Run plugins
  */
 
-function parseCommands(str) {
-  if (!str) { return []; }
-
-  var commands = configComments(['deps'], str || '');
-  return _.reduce(commands, function(acc, res) {
-    acc.required = acc.required || [];
-    acc.ignored = acc.ignored || [];
-    res._.forEach(function(arg) {
-      if (arg[0] === '!') {
-        acc.ignored.push(arg.slice(1));
-      } else {
-        acc.required.push(arg);
-      }
-    });
-    return acc;
-  }, {});
-}
+app.task('plugins', function(cb) {
+  // console.log(app)
+  cb();
+});
 
 /**
- * Get the given `type` of dependencies
- * from package.json
+ * Prompts
  */
 
-function pkgdeps(pkg, type) {
-  if (pkg.hasOwnProperty(type)) {
-    return pkg[type];
-  }
-  return null;
-}
+app.task('prompts', ['plugins'], function() {
+  return enquirer.ask('installer')
+    .then(ask('unused'))
+    .then(ask('missing'))
+    .then(ask('install'))
+});
 
 /**
- * Return an array of keys for the dependencies
- * in package.json
+ * Actions
  */
 
-function depsKeys(pkg, type) {
-  var deps = pkgdeps(pkg, type);
-  return deps
-    ? Object.keys(deps)
-    : [];
-}
+app.task('remove', function(cb) {
+  actions.remove(app, cb);
+});
+
+app.task('install', function(cb) {
+  actions.install(app, cb);
+});
 
 /**
- * Remove elements from the `notused` array
+ * Default task
  */
 
-function removeUnused(notused, val) {
-  if (!val) return;
+app.task('default', ['prompts', 'remove', 'install']);
 
-  if (typeof val === 'object' && !Array.isArray(val)) {
-    val = Object.keys(val);
-  }
-
-  if (!Array.isArray(val)) {
-    return;
-  }
-
-  var len = val.length;
-  while (len--) {
-    var idx = notused.indexOf(val[len]);
-    if (idx !== -1) {
-      notused.splice(idx, 1);
-    }
+function ask(name) {
+  return function() {
+    return enquirer.ask(name);
   }
 }
 
 /**
- * Add missing deps to the `deps` array
+ * Expose `app`
  */
 
-function addMissing(deps, val) {
-  if (!val) return;
-
-  if (typeof val === 'object' && !Array.isArray(val)) {
-    val = Object.keys(val);
-  }
-
-  if (!Array.isArray(val)) {
-    return;
-  }
-
-  var len = val.length;
-  while (len--) {
-    var str = val[len];
-    if (/^\./.test(str)) {
-      continue;
-    }
-
-    if (deps.indexOf(str) === -1) {
-      deps.push(str);
-    }
-  }
-}
-
-/**
- * Return an array of keys for the dependencies
- * in package.json
- */
-
-function verbProp(pkg, prop) {
-  var verb = pkg.verb || {};
-  if (!verb[prop]) {
-    return [];
-  }
-  if (Array.isArray(verb[prop])) {
-    return verb[prop];
-  }
-  if (typeof verb[prop] === 'object') {
-    return Object.keys(verb[prop]);
-  }
-}
-
-/**
- * Return a function to get an array of `dependencies` from
- * package.json that match the given `pattern`
- *
- * @param {Object} pkg
- * @return {Array}
- * @api private
- */
-
-function dependencies(pkg, types) {
-  return function(pattern) {
-    return depTypes(types).reduce(function(acc, type) {
-      var keys = depsKeys(pkg, type);
-      var res = mm.match(keys, pattern || '*');
-      return acc.concat(res);
-    }, []);
-  };
-}
-
-function depTypes(types) {
-  return types || [
-    'peerDependencies',
-    'devDependencies',
-    'dependencies'
-  ];
-}
+module.exports = app;
