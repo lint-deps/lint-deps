@@ -1,24 +1,51 @@
 #!/usr/bin/env node
 
-var ok = require('log-ok');
-var argv = require('yargs-parser')(process.argv.slice(2));
-var app = require('..');
-var tasks = argv._.length ? argv._ : ['default'];
+var LintDeps = require('..');
+var commands = require('./commands');
+var argv = require('yargs')
+  .usage('Usage: $0 <command> [options]')
+  .option('upgrade', {
+    describe: 'Update all deps to the latest version and clear out unused deps.'
+  })
+  .option('types', {
+    alias: 't',
+    describe: 'Specify the types of dependencies to lint',
+    default: ['dependencies', 'devDependencies']
+  })
+  .option('why', {
+    describe: 'Show a report that explains why the given module exists in your library.'
+  })
+  .option('deps', {
+    alias: 'd',
+    describe: 'Glob pattern for "dependencies" files'
+  })
+  .option('dev', {
+    alias: 'e',
+    describe: 'Glob pattern for "devDependencies" files'
+  })
+  .option('update', {
+    alias: 'u',
+    describe: 'Add missing deps and update all existing deps to the latest version.'
+  })
+  .option('verbose', {
+    alias: 'v',
+    describe: 'Enable verbose logging'
+  })
+  .help('h')
+  .alias('h', 'help')
+  .argv;
 
-if (tasks.length !== 1 || (tasks[0] !== 'update' && tasks[0] !== 'fresh')) {
-  if (tasks.indexOf('requires') === -1) {
-    tasks.unshift('requires');
-  }
-  if (argv.fresh) {
-    tasks.unshift('fresh', 'update');
-  }
-}
+/**
+ * Instantiate LintDeps and run tasks
+ */
 
-app.build(tasks, function(err) {
+var cli = new LintDeps(argv);
+
+cli.use(commands(argv));
+cli.build(argv._.length ? argv._ : ['default'], function(err) {
   if (err) {
     console.error(err);
     process.exit(1);
   }
-  ok('done');
   process.exit();
 });
