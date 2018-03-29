@@ -2,27 +2,11 @@
 
 require('mocha');
 var assert = require('assert');
-var lintDeps = require('..');
+var LintDeps = require('..');
 
-describe('lint-deps', function() {
-  it('should export a function', function() {
-    assert.equal(typeof lintDeps, 'function');
-  });
-
-  it('should export an object', function() {
-    assert(lintDeps);
-    assert.equal(typeof lintDeps, 'object');
-  });
-
-  it('should throw an error when invalid args are passed', function(cb) {
-    try {
-      lintDeps();
-      cb(new Error('expected an error'));
-    } catch (err) {
-      assert(err);
-      assert.equal(err.message, 'expected first argument to be a string');
-      assert.equal(err.message, 'expected callback to be a function');
-      cb();
-    }
+describe('main export', function() {
+  it('should export a constructor function', function() {
+    assert.equal(typeof LintDeps, 'function');
+    assert(new LintDeps() instanceof LintDeps);
   });
 });

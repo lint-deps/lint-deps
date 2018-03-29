@@ -1,8 +1,8 @@
 {
   "name": "lint-deps",
-  "description": "Lint deps",
-  "version": "0.1.0",
-  "homepage": "https://github.com/jonschlinkert/lint-deps",
+  "description": "CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.",
+  "version": "3.0.2",
+  "homepage": "https://github.com/lint-deps/lint-deps",
   "author": "Jon Schlinkert (https://github.com/jonschlinkert)",
   "contributors": [
     "Brian Woodward (https://twitter.com/doowb)",
@@ -11,9 +11,9 @@
     "Jon Schlinkert (http://twitter.com/jonschlinkert)",
     "Mark Dalgleish (markdalgleish.com)"
   ],
-  "repository": "jonschlinkert/lint-deps",
+  "repository": "lint-deps/lint-deps",
   "bugs": {
-    "url": "https://github.com/jonschlinkert/lint-deps/issues"
+    "url": "https://github.com/lint-deps/lint-deps/issues"
   },
   "license": "MIT",
   "files": [
@@ -32,67 +32,87 @@
     "test": "mocha"
   },
   "dependencies": {
+    "ansi-yellow": "^0.1.1",
     "arr-diff": "^4.0.0",
     "arr-union": "^3.1.0",
     "arrayify-compact": "^0.2.0",
-    "async-each-series": "^1.1.0",
-    "base": "^0.13.0",
+    "base": "^1.0.0",
     "base-cwd": "^0.3.4",
     "base-npm": "^0.4.1",
-    "base-option": "^0.8.4",
-    "base-pkg": "^0.2.4",
-    "base-task": "^0.7.1",
+    "base-option": "^1.0.0",
+    "base-pkg": "^1.0.0",
+    "base-task": "^2.0.0",
     "base-yarn": "^1.0.0",
-    "clone-deep": "^0.3.0",
+    "clone-deep": "^3.0.1",
     "data-store": "^1.0.0",
-    "enquirer": "^1.0.2",
-    "find-pkg": "^1.0.0",
-    "fs-exists-sync": "^0.1.0",
-    "get-value": "^2.0.6",
-    "global-modules": "^0.2.3",
-    "is-glob": "^3.1.0",
-    "is-valid-glob": "^0.3.0",
-    "kind-of": "^4.0.0",
+    "enquirer": "^1.0.3",
+    "find-pkg": "^2.0.0",
+    "get-value": "^3.0.1",
+    "global-modules": "^1.0.0",
+    "homedir-polyfill": "^1.0.1",
+    "inflection": "^1.12.0",
+    "is-glob": "^4.0.0",
+    "is-valid-app": "^0.3.0",
+    "is-valid-glob": "^1.0.0",
+    "kind-of": "^6.0.2",
     "koalas": "^1.0.2",
     "lazy-cache": "^2.0.2",
+    "load-pkg": "^3.0.1",
+    "log-ok": "^0.1.1",
     "log-utils": "^0.2.1",
     "match-requires": "^1.0.2",
-    "matched": "^0.4.4",
-    "merge-deep": "^3.0.0",
-    "mixin-deep": "^1.2.0",
-    "object.omit": "^2.0.1",
-    "object.pick": "^1.2.0",
+    "matched": "^2.0.1",
+    "merge-configs": "^1.0.0",
+    "merge-deep": "^3.0.1",
+    "micromatch": "^3.1.10",
+    "object.omit": "^3.0.0",
+    "object.pick": "^1.3.0",
     "omit-empty": "^0.4.1",
-    "prompt-checkbox": "^2.0.1",
-    "prompt-confirm": "^1.0.2",
-    "prompt-radio": "^1.0.0",
-    "set-value": "^1.0.0",
-    "strip-comments": "^0.4.4",
+    "prompt-checkbox": "^2.2.0",
+    "prompt-confirm": "^1.2.0",
+    "prompt-radio": "^1.2.1",
+    "set-value": "^3.0.0",
+    "strip-comments": "^1.0.1",
     "text-table": "^0.2.0",
     "union-value": "^1.0.0",
     "validate-npm-package-name": "^3.0.0",
-    "vinyl": "^2.0.2",
-    "word-wrap": "^1.2.2",
-    "write-json": "^1.0.1",
-    "yargs": "^8.0.1"
+    "vinyl": "^2.1.0",
+    "word-wrap": "^1.2.3",
+    "write": "^1.0.3",
+    "write-json": "^3.0.1",
+    "yargs": "^11.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.5.3",
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^5.0.0",
+    "gulp-istanbul": "^1.1.3",
+    "gulp-eslint": "^4.0.2",
+    "gulp-unused": "^0.2.1",
+    "gulp-format-md": "^1.0.0"
   },
   "keywords": [
+    "dep",
     "dependencies",
+    "dependency",
     "deps",
+    "detect",
+    "detective",
     "devDependencies",
     "extra",
+    "find",
+    "installed",
     "lint",
     "missing",
     "new",
+    "require",
+    "required",
     "requires",
     "unused"
   ],
-  "lintDeps": {
-    "modules": {
-      "exclude": [
-        "merge-configs",
-        "micromatch"
-      ]
+  "eslintConfig": {
+    "rules": {
+      "no-console": 0
     }
   },
   "verb": {
@@ -106,10 +126,6 @@
     ],
     "lint": {
       "reflinks": true
-    },
-    "related": {
-      "list": []
-    },
-    "reflinks": []
+    }
   }
 }

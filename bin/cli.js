@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
+var pkg = require('../package');
+var write = require('write-json');
+var loadPkg = require('load-pkg');
+console.log('Running lint-deps v' + pkg.version);
+
+var utils = require('../lib/utils');
+var tasks = require('../lib/tasks');
 var LintDeps = require('..');
-var commands = require('./commands');
+var spinner;
+
 var argv = require('yargs')
   .usage('Usage: $0 <command> [options]')
   .option('upgrade', {
@@ -39,13 +47,15 @@ var argv = require('yargs')
  * Instantiate LintDeps and run tasks
  */
 
-var cli = new LintDeps(argv);
+const cli = new LintDeps(argv);
 
-cli.use(commands(argv));
-cli.build(argv._.length ? argv._ : ['default'], function(err) {
-  if (err) {
+cli.use(tasks(argv));
+cli.build(argv._.length ? argv._ : ['default'])
+  .then(() => {
+    utils.log.ok('done');
+    process.exit();
+  })
+  .catch(err => {
     console.error(err);
     process.exit(1);
-  }
-  process.exit();
-});
+  });
