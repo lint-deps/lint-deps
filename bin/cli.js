@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 
-var pkg = require('../package');
-var write = require('write-json');
-var loadPkg = require('load-pkg');
-console.log('Running lint-deps v' + pkg.version);
+const path = require('path');
+const find = require('find-pkg');
+const tasks = require('../lib/tasks');
+const utils = require('../lib/utils');
+const pkg = require('../package');
+const LintDeps = require('..');
 
-var utils = require('../lib/utils');
-var tasks = require('../lib/tasks');
-var LintDeps = require('..');
-var spinner;
+const ORIGINAL_CWD = process.cwd();
+const cwd = path.dirname(find.sync(process.cwd()));
+if (cwd !== ORIGINAL_CWD) {
+  process.chdir(cwd);
+  process.on('exit', () => process.chdir(ORIGINAL_CWD));
+}
 
-var argv = require('yargs')
+const argv = require('yargs')
   .usage('Usage: $0 <command> [options]')
   .option('upgrade', {
     describe: 'Update all deps to the latest version and clear out unused deps.'
@@ -21,15 +25,15 @@ var argv = require('yargs')
     default: ['dependencies', 'devDependencies']
   })
   .option('why', {
-    describe: 'Show a report that explains why the given module exists in your library.'
+    describe: 'Show a report that explains why the given module exists in your library. Use npm ls to see where a module exists in your dependency tree.'
   })
   .option('deps', {
     alias: 'd',
-    describe: 'Glob pattern for "dependencies" files'
+    describe: 'Add a glob pattern to package.json "lintDeps" config for "dependencies" files'
   })
   .option('dev', {
     alias: 'e',
-    describe: 'Glob pattern for "devDependencies" files'
+    describe: 'Add a glob pattern to package.json "lintDeps" config for "devDependencies" files'
   })
   .option('update', {
     alias: 'u',
@@ -40,12 +44,14 @@ var argv = require('yargs')
     describe: 'Enable verbose logging'
   })
   .help('h')
-  .alias('h', 'help')
+  .alias('help', 'h')
   .argv;
 
 /**
  * Instantiate LintDeps and run tasks
  */
+
+console.log('Running lint-deps v' + pkg.version);
 
 const cli = new LintDeps(argv);
 

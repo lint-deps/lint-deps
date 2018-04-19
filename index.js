@@ -4,10 +4,11 @@
  * Module dependencies
  */
 
+// require('time-require');
+const origCwd = process.cwd();
 const fs = require('fs');
 const path = require('path');
 const Base = require('base');
-const configs = require('merge-configs');
 const cwd = require('base-cwd');
 const dir = require('global-modules');
 const File = require('vinyl');
@@ -17,6 +18,7 @@ const npm = require('base-npm');
 const pkg = require('base-pkg');
 const task = require('base-task');
 const option = require('base-option');
+const startsWith = require('path-starts-with');
 const writeJson = require('write-json');
 const yarn = require('base-yarn');
 const mm = require('micromatch');
@@ -26,7 +28,18 @@ const mm = require('micromatch');
  */
 
 const defaults = require('./lib/defaults');
+const config = require('./lib/config');
 const utils = require('./lib/utils');
+
+class Stack extends Array {
+  push(...args) {
+    for (const arg of args) {
+      if (!this.includes(arg)) {
+        super.push(arg);
+      }
+    }
+  }
+}
 
 /**
  * Create the core application
@@ -46,6 +59,7 @@ class LintDeps extends Base {
     this.use(pkg());
     this.validTypes = utils.validTypes;
     this.cache.files = {};
+    this.files = new Stack();
   }
 
   /**
@@ -55,23 +69,28 @@ class LintDeps extends Base {
   lazyInit() {
     if (!this.isInitialized && this.options.init !== false) {
       this.isInitialized = true;
-      const pwd = process.cwd();
-      const app = this;
+
+      const resetCwd = function() {
+        if (process.cwd() !== origCwd) {
+          process.chdir(origCwd);
+        }
+      };
 
       this.on('cwd', function(cwd) {
-        console.log('changing cwd to:', cwd);
-        process.chdir(cwd);
-      });
-
-      this.once('end', function() {
-        if (pwd !== app.cwd) {
-          process.chdir(pwd);
+        if (cwd !== origCwd) {
+          console.log('changing cwd to:', cwd);
+          process.chdir(cwd);
         }
       });
+
+      this.once('end', resetCwd);
+      process.on('exit', resetCwd);
 
       if (!this.options.verbose) {
         this.enable('silent');
       }
+
+      this.rootFiles = fs.readdirSync(process.cwd());
 
       // load all config files
       this.loadConfig();
@@ -95,35 +114,27 @@ class LintDeps extends Base {
   loadConfig(types, options) {
     if (!Array.isArray(types)) {
       options = types;
-      types = [];
+      types = new Stack();
     }
 
     this.use(defaults());
     const opts = utils.merge({}, this.defaults, this.options, options);
+
     opts.types = utils.union([], utils.get(opts, 'config.types'), types);
     opts.files = utils.get(opts, 'config.files');
     opts.filter = utils.get(opts, 'config.filter');
-    this.config = configs('lint-deps', opts);
-    this.config.js = this.config.js.filter(function(fp) {
-      return true;
-      const folder = path.basename(path.dirname(fp));
-      if (folder !== '.lint-deps') {
-        return false;
-      }
-      const name = path.basename(fp);
-      return name === 'index.js' || name === 'lintfile.js';
-    });
+    this.config = config(this, opts);
 
-    const userConfig = glob.sync('lint-deps-*', {cwd: dir})
-      .map(function(name) {
-        return require.resolve(path.resolve(dir, name));
-      });
+    // const userConfig = {};
+    // const userConfig = glob.sync('lint-deps-*', { cwd: dir })
+    //   .map(function(name) {
+    //     return require.resolve(path.resolve(dir, name));
+    //   });
 
     utils.normalizeOptions(this.config.merged);
     this.default(this.config.merged);
-    const js = utils.union([], this.defaults.js, this.config.js, this.options.js, userConfig);
 
-    this.loadPlugins(js);
+    this.pluginQueue = utils.union([], this.defaults.js, this.options.js, this.config.js);
     utils.normalizeOptions(this.options);
 
     const devDeps = this.options.dev;
@@ -218,7 +229,7 @@ class LintDeps extends Base {
       this.report = {};
     }
 
-    this.report.types = [];
+    this.report.types = new Stack();
 
     for (const type of types) {
       const report = this.lintType(type, options);
@@ -330,14 +341,17 @@ class LintDeps extends Base {
     }, []);
 
     files = utils.sortFiles(files);
+    this.files = files;
+
+    this.loadPlugins(this.pluginQueue);
 
     const report = this.report[type] || (this.report[type] = {});
     const pkg = utils.clone(typeOpts.pkg || this.pkg.data);
     const deps = Object.keys(pkg[type] || {});
     const missing = { modules: [], files: {} };
     const modules = {};
-    const used = [];
-    const all = [];
+    const used = new Stack();
+    const all = new Stack();
 
     report.type = type;
 
@@ -349,7 +363,7 @@ class LintDeps extends Base {
     });
 
     for (const file of files) {
-      file.missing = [];
+      file.missing = new Stack();
 
       this.emit('file', file);
 
@@ -544,7 +558,7 @@ class LintDeps extends Base {
    */
 
   addFile(type, file) {
-    this.union(`cache.${type}`, file);
+    this.union(type, file);
     return this;
   }
 
@@ -571,7 +585,7 @@ class LintDeps extends Base {
     }
 
     if (!utils.isValidGlob(patterns)) return [];
-    const opts = Object.assign({cwd: this.cwd}, options);
+    const opts = Object.assign({ cwd: this.cwd }, options);
 
     return glob.sync(patterns, opts).reduce((acc, basename) => {
       const fp = path.join(opts.cwd, basename);
@@ -596,7 +610,7 @@ class LintDeps extends Base {
    *
    * // example gulp plugin usage
    * function plugin(options) {
-   *   var files = [];
+   *   var files = new Stack();
    *   return through.obj(function(file, enc, next) {
    *     files.push(toFile(file, options));
    *     next();
@@ -610,10 +624,11 @@ class LintDeps extends Base {
    * @api public
    */
 
-  toFile(file, options = {}) {
+  toFile(file, options) {
     const opts = Object.assign({}, this.options, options);
+
     if (typeof file === 'string') {
-      file = new File({path: path.resolve(this.cwd, file)});
+      file = new File({ path: path.resolve(this.cwd, file) });
     }
 
     if (!file.stat) {
@@ -627,8 +642,11 @@ class LintDeps extends Base {
     }
 
     file.folder = path.basename(file.dirname);
-    this.stripComments(file, opts);
-    this.matchModules(file, opts);
+
+    if (file.extname === '.js') {
+      this.stripComments(file, opts);
+      this.matchModules(file, opts);
+    }
     return file;
   }
 
@@ -644,23 +662,25 @@ class LintDeps extends Base {
 
   matchModules(file, options = {}) {
     const opts = Object.assign({}, this.options, options);
-    const matches = utils.modules(file.contents.toString(), opts);
+    const matches = utils.modules(file.contents.toString(), true);
     const isIgnored = this.isIgnored(opts.exclude);
-    file.modules = [];
+    file.modules = new Stack();
 
     for (let i = 0; i < matches.length; i++) {
-      let name = matches[i].module;
+      let name = matches[i].name;
 
       if (!utils.isValidPackageName(name)) {
         continue;
       }
 
-      // get the module name from `foo/bar`
-      if (!/^@[^/]+?\/[^/]+?$/.test(name)) {
-        name = name.split(/[\\/]/)[0];
+      const segs = name.split(/[\\/]/);
+      name = segs.shift();
+
+      if (name[0] === '@') {
+        name = `${name}/${segs.shift()}`;
       }
 
-      if (!isIgnored(name)) {
+      if (!isIgnored(name) && !file.modules.includes(name)) {
         file.modules.push(name);
       }
     }
@@ -744,6 +764,18 @@ class LintDeps extends Base {
 
     if (typeof this.options.filter === 'function') {
       return this.options.filter.call(this, file);
+    }
+
+    this.ignoredDirs = this.ignoredDirs || [];
+    for (const dir of this.ignoredDirs) {
+      if (startsWith(file.dirname, dir)) {
+        return false;
+      }
+    }
+
+    if (file.dirname !== file.cwd && fs.existsSync(path.join(file.dirname, 'package.json'))) {
+      this.ignoredDirs.push(file.dirname);
+      return false;
     }
 
     if (file.extname !== '.js' && file.folder !== 'bin') {
