@@ -54,7 +54,6 @@
     "is-glob": "^4.0.0",
     "is-valid-glob": "^1.0.0",
     "kind-of": "^6.0.2",
-    "log-ok": "^0.1.1",
     "log-utils": "^1.0.0",
     "match-requires": "^2.0.1",
     "matched": "^3.0.1",
