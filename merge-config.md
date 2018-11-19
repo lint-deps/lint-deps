@@ -22,7 +22,6 @@ We start with an empty config object that looks something like this:
 }
 ```
 
-
 When `merge(name)` is called:
 
 1. [glob patterns](#glob-patterns) are created by combining your application's `name` with a list of directories that corresponds to the pre-defined locations, along with some minimal `*` wildcard magic.

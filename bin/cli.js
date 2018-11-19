@@ -2,6 +2,7 @@
 
 const path = require('path');
 const find = require('find-pkg');
+const colors = require('ansi-colors');
 const tasks = require('../lib/tasks');
 const utils = require('../lib/utils');
 const pkg = require('../package');
@@ -58,7 +59,7 @@ const cli = new LintDeps(argv);
 cli.use(tasks(argv));
 cli.build(argv._.length ? argv._ : ['default'])
   .then(() => {
-    utils.log.ok('done');
+    console.log(colors.green(colors.symbols.check), 'done');
     process.exit();
   })
   .catch(err => {

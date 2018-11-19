@@ -4,13 +4,11 @@
  * Module dependencies
  */
 
-// require('time-require');
 const origCwd = process.cwd();
 const fs = require('fs');
 const path = require('path');
 const Base = require('base');
 const cwd = require('base-cwd');
-const dir = require('global-modules');
 const File = require('vinyl');
 const get = require('get-value');
 const glob = require('matched');
@@ -19,7 +17,7 @@ const pkg = require('base-pkg');
 const task = require('base-task');
 const option = require('base-option');
 const startsWith = require('path-starts-with');
-const writeJson = require('write-json');
+const write = require('write');
 const yarn = require('base-yarn');
 const mm = require('micromatch');
 
@@ -168,7 +166,7 @@ class LintDeps extends Base {
       } else {
         utils.set(pkg, 'lintDeps.' + prop, val);
       }
-      writeJson.sync(this.pkg.path, pkg);
+      write.sync(this.pkg.path, JSON.stringify(pkg, null, 2));
     });
   }
 
@@ -262,9 +260,7 @@ class LintDeps extends Base {
     Object.defineProperty(this.report, 'unused', {
       configurable: true,
       get: function() {
-        return this.types.reduce((acc, type) => {
-          return acc.concat(this[type].unused);
-        }, []);
+        return this.types.reduce((acc, type) => acc.concat(this[type].unused), []);
       }
     });
 
@@ -662,27 +658,33 @@ class LintDeps extends Base {
 
   matchModules(file, options = {}) {
     const opts = Object.assign({}, this.options, options);
-    const matches = utils.modules(file.contents.toString(), true);
-    const isIgnored = this.isIgnored(opts.exclude);
-    file.modules = new Stack();
+    try {
+      const matches = utils.modules(file.contents.toString(), true);
+      const isIgnored = this.isIgnored(opts.exclude);
+      file.modules = new Stack();
 
-    for (let i = 0; i < matches.length; i++) {
-      let name = matches[i].name;
+      for (let i = 0; i < matches.length; i++) {
+        let name = matches[i].name;
 
-      if (!utils.isValidPackageName(name)) {
-        continue;
+        if (!utils.isValidPackageName(name)) {
+          continue;
+        }
+
+        let segs = name.split(/[\\/]/);
+        name = segs.shift();
+
+        if (name[0] === '@') {
+          name = `${name}/${segs.shift()}`;
+        }
+
+        if (!isIgnored(name) && !file.modules.includes(name)) {
+          file.modules.push(name);
+        }
       }
-
-      const segs = name.split(/[\\/]/);
-      name = segs.shift();
-
-      if (name[0] === '@') {
-        name = `${name}/${segs.shift()}`;
-      }
-
-      if (!isIgnored(name) && !file.modules.includes(name)) {
-        file.modules.push(name);
-      }
+    } catch (err) {
+      err.file = file;
+      err.path = file.path;
+      throw err;
     }
   }
 
@@ -713,10 +715,11 @@ class LintDeps extends Base {
       str = str.replace(/#!\/usr[^\n'",]+/gm, '');
       str = str.replace(/^\s*\/\/[^\n]+/gm, '');
 
-      file.contents = new Buffer(str);
+      file.contents = Buffer.from(str);
     } catch (err) {
+      err.file = file;
       console.log('parsing error in: ' + file.path);
-      console.log(err);
+      console.log(err.stack);
     }
   }
 
