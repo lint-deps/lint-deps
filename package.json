@@ -34,17 +34,14 @@
   "dependencies": {
     "ansi-colors": "^3.2.1",
     "arr-diff": "^4.0.0",
-    "arr-union": "^3.1.0",
-    "array-unique": "^0.3.2",
     "arrayify-compact": "^0.2.0",
     "base": "^3.0.0",
     "base-cwd": "^0.3.4",
     "base-npm": "^0.4.1",
     "base-option": "^1.0.0",
-    "base-pkg": "^1.0.0",
-    "base-task": "^2.0.1",
+    "base-task": "^3.0.0",
     "base-yarn": "^1.0.0",
-    "clone-deep": "^4.0.0",
+    "clone-deep": "^4.0.1",
     "data-store": "^3.1.0",
     "enquirer": "^2.0.7",
     "find-pkg": "^2.0.0",
@@ -59,11 +56,9 @@
     "matched": "^3.0.1",
     "merge-configs": "^3.0.0",
     "merge-deep": "^3.0.2",
-    "micromatch": "^3.1.10",
-    "object.omit": "^3.0.0",
-    "object.pick": "^1.3.0",
     "omit-empty": "^0.4.1",
     "path-starts-with": "^1.0.0",
+    "picomatch": "^1.0.2",
     "set-value": "^3.0.0",
     "strip-comments": "^1.0.2",
     "text-table": "^0.2.0",
@@ -72,17 +67,11 @@
     "vinyl": "^2.2.0",
     "word-wrap": "^1.2.3",
     "write": "^1.0.3",
-    "write-json": "^3.0.1",
-    "yargs": "^12.0.4"
+    "yargs": "^12.0.5"
   },
   "devDependencies": {
-    "mocha": "^5.2.0",
-    "gulp": "^3.9.1",
-    "gulp-mocha": "^6.0.0",
-    "gulp-istanbul": "^1.1.3",
-    "gulp-eslint": "^5.0.0",
-    "gulp-unused": "^0.2.1",
-    "gulp-format-md": "^2.0.0"
+    "gulp-format-md": "^2.0.0",
+    "mocha": "^5.2.0"
   },
   "keywords": [
     "dep",
