@@ -16,8 +16,6 @@ const glob = require('matched');
 const pico = require('picomatch');
 const npm = require('base-npm');
 const task = require('base-task');
-//const yarn = require('base-yarn');
-//const option = require('base-option');
 const startsWith = require('path-starts-with');
 const write = require('write');
 
@@ -28,16 +26,7 @@ const write = require('write');
 const defaults = require('./lib/defaults');
 const config = require('./lib/config');
 const utils = require('./lib/utils');
-
-class Stack extends Array {
-  push(...args) {
-    for (const arg of args) {
-      if (!this.includes(arg)) {
-        super.push(arg);
-      }
-    }
-  }
-}
+const { Stack } = utils;
 
 /**
  * Create the core application
@@ -51,9 +40,7 @@ class LintDeps extends Base {
     this.defaults = {};
     this.config = {};
     this.use(cwd());
-    // this.use(option());
     this.use(task());
-    // this.use(yarn());
     this.use(npm());
     this.pkg = {};
     this.pkg.path = path.join(this.cwd, 'package.json');
@@ -380,7 +367,7 @@ class LintDeps extends Base {
       }
     });
 
-    let ignore = get(this, `config.merged.${type}.ignore`) || get(this, `config.merged.ignore`);
+    let ignore = get(this, `config.merged.${type}.ignore`) || get(this, 'config.merged.ignore');
     if (Array.isArray(ignore) || typeof ignore === 'string') {
       ignore = { patterns: ignore };
     }
@@ -391,7 +378,6 @@ class LintDeps extends Base {
     }
 
     this.state.ignored = isIgnored;
-    const seen = new Set();
 
     for (const file of files) {
       file.missing = new Stack();
