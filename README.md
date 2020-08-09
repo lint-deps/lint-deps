@@ -1,121 +1,108 @@
-# lint-deps [![NPM version](https://badge.fury.io/js/lint-deps.png)](http://badge.fury.io/js/lint-deps)
+# lint-deps [![NPM version](https://img.shields.io/npm/v/lint-deps.svg?style=flat)](https://www.npmjs.com/package/lint-deps) [![NPM monthly downloads](https://img.shields.io/npm/dm/lint-deps.svg?style=flat)](https://npmjs.org/package/lint-deps) [![NPM total downloads](https://img.shields.io/npm/dt/lint-deps.svg?style=flat)](https://npmjs.org/package/lint-deps) [![Linux Build Status](https://img.shields.io/travis/lint-deps/lint-deps.svg?style=flat&label=Travis)](https://travis-ci.org/lint-deps/lint-deps)
 
 > CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.
 
+Please consider following this project's author, [Jon Schlinkert](https://github.com/jonschlinkert), and consider starring the project to show your :heart: and support.
+
+## Table of Contents
+
+<details>
+<summary><strong>Details</strong></summary>
+
+- [Install](#install)
+- [CLI](#cli)
+- [API](#api)
+- [About](#about)
+
+</details>
+
 ## Install
 
-Install globally with [npm](https://www.npmjs.com/)
+Install with [npm](https://www.npmjs.com/):
 
 ```sh
-$ npm i -g lint-deps
+$ npm install --save lint-deps
 ```
 
 ## CLI
 
-In the command line, run:
-
-```bash
-deps
 ```
+Usage: deps <command> [options]
 
-### Commands
-
-* `-r` | `--report`: save a report to disk. By default `report.json` is saved. To change the path do: `-r foo.json`
-* `-e` | `--exclude`: comma-separated list of files or directories to exclude. Example: `deps -e test,lib`
-
-## Examples
-
-If everything is good, you'll see something like this:
-
-[![image](https://cloud.githubusercontent.com/assets/383994/5220675/bbef28da-7636-11e4-9014-86ca0e43ea46.png)](https://www.npmjs.com/)
-
-### Install missing packages
-
-If packages are missing, you'll see a prompt like this (also shows which files require the package):
-
-![image](https://cloud.githubusercontent.com/assets/383994/5220685/f2a0292e-7636-11e4-844a-2166f68862d4.png)
-
-**If you choose <kbd>yes</kbd>:**
-
-![image](https://cloud.githubusercontent.com/assets/383994/5220711/535b5f68-7637-11e4-9457-9280f7457d95.png)
-
-**choose dependencies**
-
-Works the same way for `devDependencies`:
-
-![image](https://cloud.githubusercontent.com/assets/383994/2775421/43a349be-cac5-11e3-9cc6-20e9a3ae7f26.png)
-
-**choose "nothing, just install"**
-
-![image](https://cloud.githubusercontent.com/assets/383994/5220757/d1135eba-7637-11e4-8ea4-2542af1b564e.png)
-
-Now hit <kbd>enter</kbd> and everything that was checked will be installed.
-
-**If you choose <kbd>no</kbd>:**
-
-![image](https://cloud.githubusercontent.com/assets/383994/5220760/ecbe1fec-7637-11e4-9eb2-b8881c66e7af.png)
-
-Done.
+Options:
+  --version      Show version number [boolean]
+  --upgrade      Update all deps to the latest version and clear out unused
+                 deps.
+  --types, -t    Specify the types of dependencies to lint
+                                   [default: ["dependencies","devDependencies"]]
+  --why          Show a report that explains why the given module exists in your
+                 library. Use npm ls to see where a module exists in your
+                 dependency tree.
+  --deps, -d     Add a glob pattern to package.json "lintDeps" config for
+                 "dependencies" files
+  --dev, -e      Add a glob pattern to package.json "lintDeps" config for
+                 "devDependencies" files
+  --update, -u   Add missing deps and update all existing deps to the latest
+                 version.
+  --verbose, -v  Enable verbose logging
+  --help, -h     Show help [boolean]
+```
 
 ## API
 
 ```js
-var deps = require('lint-deps');
-
-// pass the directory to scan
-console.log(deps('lib'));
+const Deps = require('lint-deps');
+const deps = new Deps();
 ```
 
-## Manually define dependencies
+## About
 
-When dependencies are defined in a format that isn't recognized by lint-deps, like with grunt tasks (e.g. `grunt.loadNpmTasks()`), you can manually specify these dependencies in code comments, similar to jshint commands.
+<details>
+<summary><strong>Contributing</strong></summary>
 
-**Example**:
+Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](../../issues/new).
 
-Make sure `deps` is the first thing, and pass a space separated list of module names:
+Please read the [contributing guide](.github/contributing.md) for advice on opening issues, pull requests, and coding standards.
 
-```js
-/** deps: foo bar baz */
-```
+</details>
 
-If you use [verb](https://github.com/assemble/verb), you can use HTML code comments in your `.verb.md` file:
+<details>
+<summary><strong>Running Tests</strong></summary>
 
-```html
-{%= reflinks() %}
-<!-- deps: helper-reflinks -->
-```
-
-## Related projects
-
-* [list-deps](https://www.npmjs.com/package/list-deps): List the dependencies in the package.json of the current project. | [homepage](https://github.com/jonschlinkert/list-deps)
-* [lookup-deps](https://www.npmjs.com/package/lookup-deps): Simple API for getting metadata from locally installed npm packages (in `node_modules`). | [homepage](https://github.com/jonschlinkert/lookup-deps)
-* [resolve-dep](https://www.npmjs.com/package/resolve-dep): Return an array of resolved filepaths for require-able local or named npm modules. Wildcard (glob)… [more](https://www.npmjs.com/package/resolve-dep) | [homepage](https://github.com/jonschlinkert/resolve-dep)
-* [spawn-commands](https://www.npmjs.com/package/spawn-commands): Launches a new process with the given command, with command line arguments in `args`. Should… [more](https://www.npmjs.com/package/spawn-commands) | [homepage](https://github.com/jonschlinkert/spawn-commands)
-
-## Running tests
-
-Install dev dependencies:
+Running and reviewing unit tests is a great way to get familiarized with a library and its API. You can install dependencies and run tests with the following command:
 
 ```sh
-$ npm i -d && npm test
+$ npm install && npm test
 ```
 
-## Contributing
+</details>
 
-Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](https://github.com/jonschlinkert/lint-deps/issues/new).
+<details>
+<summary><strong>Building docs</strong></summary>
 
-## Author
+_(This project's readme.md is generated by [verb](https://github.com/verbose/verb-generate-readme), please don't edit the readme directly. Any changes to the readme must be made in the [.verb.md](.verb.md) readme template.)_
+
+To generate the readme, run the following command:
+
+```sh
+$ npm install -g verbose/verb#dev verb-generate-readme && verb
+```
+
+</details>
+
+### Author
 
 **Jon Schlinkert**
 
-+ [github/jonschlinkert](https://github.com/jonschlinkert)
-+ [twitter/jonschlinkert](http://twitter.com/jonschlinkert)
+* [GitHub Profile](https://github.com/jonschlinkert)
+* [Twitter Profile](https://twitter.com/jonschlinkert)
+* [LinkedIn Profile](https://linkedin.com/in/jonschlinkert)
 
-## License
+### License
 
-Copyright © 2014-2015 [Jon Schlinkert](https://github.com/jonschlinkert)
-Released under the MIT license.
+Copyright © 2018, [Jon Schlinkert](https://github.com/jonschlinkert).
+Released under the [MIT License](LICENSE).
 
 ***
 
-_This file was generated by [verb-cli](https://github.com/assemble/verb-cli) on November 17, 2015._
+_This file was generated by [verb-generate-readme](https://github.com/verbose/verb-generate-readme), v0.8.0, on November 20, 2018._

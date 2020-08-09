@@ -2,48 +2,71 @@
   "name": "lint-deps",
   "description": "CLI tool that tells you when dependencies are missing from package.json and offers you a choice to install them. Also tells you when dependencies are listed in package.json but are not being used anywhere in your project. Node.js command line tool and API.",
   "version": "3.0.2",
-  "homepage": "https://github.com/jonschlinkert/lint-deps",
+  "homepage": "https://github.com/lint-deps/lint-deps",
   "author": "Jon Schlinkert (https://github.com/jonschlinkert)",
-  "repository": "jonschlinkert/lint-deps",
+  "contributors": [
+    "Brian Woodward (https://twitter.com/doowb)",
+    "hemanth.hm (http://h3manth.com)",
+    "Jake Verbaten (http://github.com/Raynos)",
+    "Jon Schlinkert (http://twitter.com/jonschlinkert)",
+    "Mark Dalgleish (markdalgleish.com)"
+  ],
+  "repository": "lint-deps/lint-deps",
   "bugs": {
-    "url": "https://github.com/jonschlinkert/lint-deps/issues"
+    "url": "https://github.com/lint-deps/lint-deps/issues"
   },
   "license": "MIT",
   "files": [
-    "cli.js",
+    "bin",
     "index.js",
-    "lib/"
+    "lib"
   ],
   "main": "index.js",
-  "preferGlobal": true,
   "bin": {
-    "deps": "cli.js"
+    "deps": "bin/cli.js"
+  },
+  "engines": {
+    "node": ">=8.0"
+  },
+  "scripts": {
+    "test": "mocha"
   },
   "dependencies": {
-    "ansi-gray": "^0.1.1",
-    "ansi-red": "^0.1.1",
-    "arr-flatten": "^1.0.1",
-    "array-unique": "^0.2.1",
-    "commandments": "^0.2.4",
-    "extend-shallow": "^2.0.1",
-    "filter-object": "^2.1.0",
-    "find-pkg": "^0.1.1",
-    "get-value": "^2.0.2",
-    "inquirer2": "github:jonschlinkert/inquirer2",
-    "load-pkg": "^3.0.1",
-    "lodash": "^3.10.1",
-    "log-symbols": "^1.0.2",
-    "match-requires": "^1.0.1",
-    "micromatch": "^2.3.7",
-    "minimist": "^1.2.0",
-    "object.omit": "^2.0.0",
-    "parse-gitignore": "^0.2.0",
-    "regexp-special-chars": "^0.1.0",
-    "spawn-commands": "^0.3.1",
-    "strip-comments": "^0.4.3",
-    "verbalize": "^0.1.2",
-    "word-wrap": "^1.1.0",
-    "write-json": "^0.2.2"
+    "@folder/xdg": "^2.1.0",
+    "ansi-colors": "^3.2.4",
+    "base": "^3.0.0",
+    "base-cwd": "^0.3.4",
+    "base-npm": "^0.4.1",
+    "base-task": "^3.0.0",
+    "clone-deep": "^4.0.1",
+    "data-store": "^3.1.0",
+    "enquirer": "^2.3.0",
+    "find-pkg": "^2.0.0",
+    "get-value": "^3.0.1",
+    "global-modules": "^2.0.0",
+    "inflection": "^1.12.0",
+    "kind-of": "^6.0.2",
+    "log-utils": "^1.0.0",
+    "matched": "^4.0.0",
+    "merge-configs": "^3.0.0",
+    "merge-deep": "^3.0.2",
+    "omit-empty": "^1.0.0",
+    "path-starts-with": "^2.0.0",
+    "picomatch": "^2.0.6",
+    "set-value": "^3.0.0",
+    "strip-comments": "file:../../comments/strip-comments",
+    "text-table": "^0.2.0",
+    "union-value": "^2.0.0",
+    "validate-npm-package-name": "^3.0.0",
+    "vinyl": "^2.2.0",
+    "word-wrap": "^1.2.3",
+    "write": "^1.0.3",
+    "yargs": "^13.2.2"
+  },
+  "devDependencies": {
+    "assemble": "^0.24.3",
+    "gulp-format-md": "^2.0.0",
+    "mocha": "^6.1.4"
   },
   "keywords": [
     "dep",
@@ -52,25 +75,34 @@
     "deps",
     "detect",
     "detective",
+    "devDependencies",
+    "extra",
     "find",
     "installed",
     "lint",
     "missing",
+    "new",
     "require",
     "required",
-    "requires"
+    "requires",
+    "unused"
   ],
+  "eslintConfig": {
+    "rules": {
+      "no-console": 0
+    }
+  },
   "verb": {
-    "related": {
-      "list": [
-        "list-deps",
-        "lookup-deps",
-        "resolve-dep",
-        "spawn-commands"
-      ]
-    },
-    "reflinks": [
-      "template"
-    ]
+    "toc": "collapsible",
+    "layout": "default",
+    "tasks": [
+      "readme"
+    ],
+    "plugins": [
+      "gulp-format-md"
+    ],
+    "lint": {
+      "reflinks": true
+    }
   }
 }
