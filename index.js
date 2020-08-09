@@ -4,6 +4,7 @@
  * Module dependencies
  */
 
+const { defineProperty } = Reflect;
 const origCwd = process.cwd();
 const fs = require('fs');
 const path = require('path');
@@ -15,8 +16,8 @@ const glob = require('matched');
 const pico = require('picomatch');
 const npm = require('base-npm');
 const task = require('base-task');
-const yarn = require('base-yarn');
-const option = require('base-option');
+//const yarn = require('base-yarn');
+//const option = require('base-option');
 const startsWith = require('path-starts-with');
 const write = require('write');
 
@@ -30,7 +31,7 @@ const utils = require('./lib/utils');
 
 class Stack extends Array {
   push(...args) {
-    for (let arg of args) {
+    for (const arg of args) {
       if (!this.includes(arg)) {
         super.push(arg);
       }
@@ -43,15 +44,16 @@ class Stack extends Array {
  */
 
 class LintDeps extends Base {
-  constructor(options) {
+  constructor(options = {}) {
     super(null, options);
     this.is('app');
+    this.options = options;
     this.defaults = {};
     this.config = {};
     this.use(cwd());
-    this.use(option());
+    // this.use(option());
     this.use(task());
-    this.use(yarn());
+    // this.use(yarn());
     this.use(npm());
     this.pkg = {};
     this.pkg.path = path.join(this.cwd, 'package.json');
@@ -62,6 +64,25 @@ class LintDeps extends Base {
     this.state = {};
   }
 
+  option(key, value) {
+    switch (utils.typeOf(key)) {
+      case 'object':
+        for (const k of Object.keys(key)) this.option(k, key[k]);
+        break;
+      case 'array':
+      case 'string':
+        if (typeof value === 'undefined') {
+          return [key, utils.get(this.defaults, key)].find(v => v != null);
+        }
+        utils.set(this.options, key, value);
+        break;
+      default: {
+        throw new TypeError('expected key to be a string, object or array');
+      }
+    }
+    return this;
+  }
+
   /**
    * Initialize config and load plugins with the given `options`.
    */
@@ -70,7 +91,7 @@ class LintDeps extends Base {
     if (!this.isInitialized && this.options.init !== false) {
       this.isInitialized = true;
 
-      let resetCwd = () => {
+      const resetCwd = () => {
         if (process.cwd() !== origCwd) {
           process.chdir(origCwd);
         }
@@ -87,7 +108,7 @@ class LintDeps extends Base {
       process.on('exit', resetCwd);
 
       if (!this.options.verbose) {
-        this.enable('silent');
+        this.options.silent = true;
       }
 
       this.rootFiles = fs.readdirSync(process.cwd());
@@ -101,7 +122,7 @@ class LintDeps extends Base {
    * Initialize plugins and defaults with the given `options`
    *
    * ```js
-   * let app = new LintDeps();
+   * const app = new LintDeps();
    * app.loadConfig(types[, options]);
    * // example
    * app.loadConfig(['global', 'local', 'cwd']);
@@ -118,7 +139,7 @@ class LintDeps extends Base {
     }
 
     this.use(defaults());
-    let opts = utils.merge({}, this.defaults, this.options, options);
+    const opts = utils.merge({}, this.defaults, this.options, options);
 
     opts.types = utils.union([], utils.get(opts, 'config.types'), types);
     opts.files = utils.get(opts, 'config.files');
@@ -127,46 +148,7 @@ class LintDeps extends Base {
 
     utils.normalizeOptions(this.config.merged);
     this.default(this.config.merged);
-
-    this.pluginQueue = utils.union([], this.defaults.js, this.options.js, this.config.js);
-    utils.normalizeOptions(this.options);
-
-    let devDeps = this.options.dev;
-    let deps = this.options.deps;
-
-    if (devDeps) {
-      utils.unionValue(this.options, 'devDependencies.files.patterns', devDeps);
-      this.updatePackage('devDependencies.files.patterns', devDeps, utils.unionValue);
-    }
-    if (deps) {
-      utils.unionValue(this.options, 'dependencies.files.patterns', deps);
-      this.updatePackage('dependencies.files.patterns', deps, utils.unionValue);
-    }
-  }
-
-  /**
-   * Update `prop` in package.json with the given `value`.
-   *
-   * @param {String} `prop`
-   * @param {Any} `val`
-   * @param {Function} `fn` (optional)
-   * @return {undefined}
-   * @api public
-   */
-
-  updatePackage(prop, val, fn) {
-    this.on('done', () => {
-      let pkg = JSON.parse(fs.readFileSync(this.pkg.path));
-      let key = `lintDeps.${prop}`;
-
-      if (typeof fn === 'function') {
-        fn(pkg, key, val);
-      } else {
-        utils.set(pkg, key, val);
-      }
-
-      write.sync(this.pkg.path, JSON.stringify(pkg, null, 2));
-    });
+    this.runPlugins();
   }
 
   /**
@@ -174,7 +156,7 @@ class LintDeps extends Base {
    * instance of `LintDeps`.
    *
    * ```js
-   * let app = new LintDeps();
+   * const app = new LintDeps();
    * // plugins
    * app.loadPlugins([
    *   function(app) {},
@@ -198,6 +180,57 @@ class LintDeps extends Base {
   }
 
   /**
+   * Run plugins that were previously loaded
+   */
+
+  runPlugins() {
+    const { config, defaults, options } = this;
+    const { dev, deps } = options;
+
+    if (!this.pluginQueue) {
+      this.pluginQueue = utils.union([], defaults.js, options.js, config.js);
+      utils.normalizeOptions(options);
+    }
+
+    if (dev && !this.cache.updatedDevDeps) {
+      this.cache.updatedDevDeps = true;
+      utils.unionValue(options, 'devDependencies.files.patterns', dev);
+      this.updatePackage('devDependencies.files.patterns', dev, utils.unionValue);
+    }
+
+    if (deps && !this.cache.updatedDeps) {
+      this.cache.updatedDeps = true;
+      utils.unionValue(options, 'dependencies.files.patterns', deps);
+      this.updatePackage('dependencies.files.patterns', deps, utils.unionValue);
+    }
+  }
+
+  /**
+   * Update `prop` in package.json with the given `value`.
+   *
+   * @param {String} `prop`
+   * @param {Any} `val`
+   * @param {Function} `fn` (optional)
+   * @return {undefined}
+   * @api public
+   */
+
+  updatePackage(prop, val, fn) {
+    this.on('done', () => {
+      const pkg = JSON.parse(fs.readFileSync(this.pkg.path));
+      const key = `lintDeps.${prop}`;
+
+      if (typeof fn === 'function') {
+        fn(pkg, key, val);
+      } else {
+        utils.set(pkg, key, val);
+      }
+
+      write.sync(this.pkg.path, JSON.stringify(pkg, null, 2));
+    });
+  }
+
+  /**
    * Lint for missing or unused dependencies for the given
    * dependency `types` in the specified `files`.
    *
@@ -213,14 +246,11 @@ class LintDeps extends Base {
     if (types === '*') types = utils.validTypes;
     types = [].concat(types || []);
 
-    if (typeof this.report === 'undefined') {
-      this.report = {};
-    }
-
+    this.report = this.report || {};
     this.report.types = new Stack();
 
-    for (let type of types) {
-      let report = this.lintType(type, options);
+    for (const type of types) {
+      const report = this.lintType(type, options);
 
       if (report) {
         this.report.types.push(report.type);
@@ -228,33 +258,35 @@ class LintDeps extends Base {
       }
     }
 
-    Object.defineProperty(this.report, 'missingCount', {
+    defineProperty(this.report, 'missingCount', {
       configurable: true,
       set(val) {
         this._missingCount = val;
       },
       get() {
         let count = this._missingCount || 0;
-        for (let type of this.types) count += this[type].missingCount;
+        for (const type of this.types) {
+          count += this[type].missingCount;
+        }
         return count;
       }
     });
 
-    Object.defineProperty(this.report, 'missingTypes', {
+    defineProperty(this.report, 'missingTypes', {
       configurable: true,
       get() {
         return this.types.filter(type => this[type].missingCount > 0);
       }
     });
 
-    Object.defineProperty(this.report, 'unused', {
+    defineProperty(this.report, 'unused', {
       configurable: true,
       get() {
         return this.types.reduce((acc, type) => acc.concat(this[type].unused), []);
       }
     });
 
-    Object.defineProperty(this.report, 'unusedCount', {
+    defineProperty(this.report, 'unusedCount', {
       configurable: true,
       get() {
         return this.unused.length;
@@ -285,7 +317,7 @@ class LintDeps extends Base {
     }
 
     this.report = this.report || {};
-    let typeOpts = this.typeOptions(type, options);
+    const typeOpts = this.typeOptions(type, options);
 
     if (!files) files = this.loadFiles(typeOpts);
     if (Array.isArray(this.cache[type])) {
@@ -331,27 +363,37 @@ class LintDeps extends Base {
 
     this.loadPlugins(this.pluginQueue);
 
-    let report = this.report[type] || (this.report[type] = {});
-    let pkg = utils.clone(typeOpts.pkg || this.pkg.data);
-    let deps = Object.keys(pkg[type] || {});
-    let missing = { modules: [], files: {} };
-    let modules = {};
-    let used = new Stack();
-    let all = new Stack();
+    const report = this.report[type] || (this.report[type] = { unused: [], missing: {} });
+    const pkg = utils.clone(typeOpts.pkg || this.pkg.data);
+    const deps = Object.keys(pkg[type] || {});
+    const missing = { modules: [], files: {} };
+    const modules = {};
+    const used = new Stack();
+    const all = new Stack();
 
     report.type = type;
 
-    Object.defineProperty(report, 'missingCount', {
+    defineProperty(report, 'missingCount', {
       configurable: true,
       get() {
         return this.missing.modules.length;
       }
     });
 
-    let ignore = get(this, `config.merged.${type}.ignore`) || [];
-    this.state.ignored = ignore;
+    let ignore = get(this, `config.merged.${type}.ignore`) || get(this, `config.merged.ignore`);
+    if (Array.isArray(ignore) || typeof ignore === 'string') {
+      ignore = { patterns: ignore };
+    }
 
-    for (let file of files) {
+    let isIgnored = () => false;
+    if (ignore) {
+      isIgnored = pico(ignore.patterns, { dot: true, nocase: true, ...ignore.options });
+    }
+
+    this.state.ignored = isIgnored;
+    const seen = new Set();
+
+    for (const file of files) {
       file.missing = new Stack();
 
       this.emit('file', file);
@@ -359,13 +401,14 @@ class LintDeps extends Base {
       utils.union(used, file.modules);
       utils.unionValue(report, 'files', file);
 
-      for (let name of file.modules) {
-        if (ignore.includes(name)) continue;
+      for (const name of file.modules) {
+        if (isIgnored(file.relative)) continue;
+
         utils.unionValue(modules, name, file.relative);
         utils.union(all, name);
 
         if (!utils.has(deps, name)) {
-          let mkey = 'files.' + file.relative.split('.').join('\\.');
+          const mkey = 'files.' + file.relative.split('.').join('\\.');
           utils.unionValue(missing, mkey, name);
           utils.unionValue(missing, 'modules', name);
           utils.unionValue(file, 'missing', name);
@@ -374,14 +417,13 @@ class LintDeps extends Base {
     }
 
     missing.modules.sort();
-
     let unused = utils.diff(deps.slice(), used.slice());
-    if (ignore.length) {
-      let isMatch = pico(ignore);
-      unused = unused.filter(name => !isMatch(name));
-    }
+    unused = unused.filter(name => !isIgnored(name));
 
     this.state.unused = unused;
+    this.loadPlugins(this.pluginQueue);
+    unused = this.state.unused;
+
     utils.set(report, 'unused', unused);
     utils.set(report, 'missing', missing);
     utils.set(report, 'modules', modules);
@@ -405,21 +447,21 @@ class LintDeps extends Base {
       throw new TypeError('expected name to be a string');
     }
 
-    let report = this.lint('*', options);
-    let res = { name: name, files: {}, types: [], count: 0 };
+    const report = this.lint('*', options);
+    const res = { name: name, files: {}, types: [], count: 0 };
 
-    for (let type of report.types) {
-      let obj = report[type];
+    for (const type of report.types) {
+      const obj = report[type];
 
       if (obj.modules.hasOwnProperty(name)) {
-        let files = obj.modules[name];
+        const files = obj.modules[name];
         res.files[type] = files;
         res.count += files.length;
       }
     }
 
-    let pkg = this.pkg.data;
-    for (let t of utils.validTypes) {
+    const pkg = this.pkg.data;
+    for (const t of utils.validTypes) {
       if (pkg[t] && pkg[t][name]) {
         res.types.push(t);
       }
@@ -429,7 +471,7 @@ class LintDeps extends Base {
   }
 
   typeOptions(type, options) {
-    let merged = this.mergeOpts(options);
+    const merged = this.mergeOpts(options);
     let opts = get(merged, type) || merged;
     if (opts.options) {
       opts = utils.merge({}, opts, opts.options);
@@ -453,7 +495,7 @@ class LintDeps extends Base {
    */
 
   uniquify(report, removeType, keepType) {
-    let exclude = get(this.pkg.data, 'lintDeps.modules.exclude') || [];
+    const exclude = get(this.pkg.data, 'lintDeps.modules.exclude') || [];
 
     if (removeType && keepType) {
       utils.uniquify(report, removeType, keepType);
@@ -461,11 +503,11 @@ class LintDeps extends Base {
     }
 
     if (utils.has(report.types, 'dependencies')) {
-      for (let type of report.types) {
+      for (const type of report.types) {
         if (exclude.length) {
           utils.remove(report[type].missing.modules, exclude);
 
-          for (let file of report[type].files) {
+          for (const file of report[type].files) {
             utils.remove(file.missing, exclude);
           }
         }
@@ -473,8 +515,8 @@ class LintDeps extends Base {
         if (type !== 'dependencies') {
           utils.uniquify(report, type, 'dependencies');
 
-          let deps = Object.keys(report.dependencies.modules);
-          for (let file of report[type].files) {
+          const deps = Object.keys(report.dependencies.modules);
+          for (const file of [].concat(report[type].files || [])) {
             utils.remove(file.missing, deps);
           }
         }
@@ -488,11 +530,11 @@ class LintDeps extends Base {
    */
 
   updateLocked(type, report, options) {
-    let locked = options.lock || {};
-    let mods = report.missing.modules;
-    for (let key of Object.keys(locked)) {
-      let val = locked[key];
-      let idx = mods.indexOf(key);
+    const locked = options.lock || {};
+    const mods = report.missing.modules;
+    for (const key of Object.keys(locked)) {
+      const val = locked[key];
+      const idx = mods.indexOf(key);
       if (idx !== -1) {
         mods[idx] = key + '@' + val;
       }
@@ -523,7 +565,7 @@ class LintDeps extends Base {
 
   getFile(type, basename, fn) {
     if (Array.isArray(this.cache[type])) {
-      for (let file of this.cache[type]) {
+      for (const file of this.cache[type]) {
         if (file.basename === basename) {
           return file;
         }
@@ -552,7 +594,7 @@ class LintDeps extends Base {
    * Load a glob of vinyl files.
    *
    * ```js
-   * let files = lintDeps.glob('*.js');
+   * const files = lintDeps.glob('*.js');
    * ```
    * @param {Array|String} `patterns` One or more glob patterns.
    * @param {Object} `options`
@@ -572,20 +614,19 @@ class LintDeps extends Base {
 
     if (!utils.isValidGlob(patterns)) return [];
 
-    let opts = Object.assign({ cwd: this.cwd }, options);
-    let files = glob.sync(patterns, opts);
+    const opts = Object.assign({ cwd: this.cwd }, options);
+    const files = glob.sync(patterns, opts);
+    const result = [];
 
-    return files.reduce((acc, basename) => {
-      let fp = path.join(opts.cwd, basename);
-      let file = this.toFile(fp, moduleOpts);
-      if (file.isDirectory()) {
-        return acc;
+    for (const basename of files) {
+      const fp = path.join(opts.cwd, basename);
+      const file = this.toFile(fp, moduleOpts);
+      if (!file.isDirectory() && this.filter(file)) {
+        result.push(file);
       }
-      if (this.filter(file) === false) {
-        return acc;
-      }
-      return acc.concat(file);
-    }, []);
+    }
+
+    return result;
   }
 
   /**
@@ -612,7 +653,7 @@ class LintDeps extends Base {
    */
 
   toFile(file, options) {
-    let opts = Object.assign({}, this.options, options);
+    const opts = { ...this.options, ...options };
 
     if (typeof file === 'string') {
       file = new File({ path: path.resolve(this.cwd, file) });
@@ -632,8 +673,9 @@ class LintDeps extends Base {
 
     if (file.extname === '.js') {
       this.stripComments(file, opts);
-      this.matchModules(file, opts);
+      this.matchRequires(file, opts);
     }
+
     return file;
   }
 
@@ -647,25 +689,31 @@ class LintDeps extends Base {
    * @api public
    */
 
-  matchModules(file, options = {}) {
-    let opts = Object.assign({}, this.options, options);
+  matchRequires(file, options = {}) {
+    const opts = { ...this.options, ...options };
+
     try {
-      let matches = utils.modules(file.contents.toString(), true);
-      let isIgnored = this.isIgnored(opts.exclude);
+      const { matchModules, isValidPackageName } = utils;
+      const matches = matchModules(file.contents.toString(), { stripComments: false }, file);
+      const isIgnored = this.isIgnored(opts.exclude);
       file.modules = new Stack();
 
       for (let i = 0; i < matches.length; i++) {
         let name = matches[i].name;
 
-        if (!utils.isValidPackageName(name)) {
+        if (name.startsWith('/') || name.startsWith('.') || !isValidPackageName(name)) {
           continue;
         }
 
-        let segs = name.split(/[\\/]/);
-        name = segs.shift();
+        if (name[0] !== '@' && name.includes('/')) {
+          name = name.slice(0, name.indexOf('/'));
+        }
 
         if (name[0] === '@') {
-          name = `${name}/${segs.shift()}`;
+          const segs = name.split('/');
+          if (segs.length > 2) {
+            name = segs.slice(0, 2).join('/');
+          }
         }
 
         if (!isIgnored(name) && !file.modules.includes(name)) {
@@ -690,27 +738,10 @@ class LintDeps extends Base {
    */
 
   stripComments(file, options) {
-    let opts = Object.assign({}, this.options, options);
-    let str = file.contents.toString();
-    if (!utils.isString(str)) return;
+    const contents = utils.stripComments(file.contents, { ...this.options, ...options, file });
 
-    if (typeof opts.stripComments === 'function') {
-      opts.stripComments.call(this, file);
-      return;
-    }
-
-    try {
-      str = utils.stripComments(str, opts);
-      // strip hash-bang from bos and quoted strings in
-      // unit tests etc, since they choke esprima
-      str = str.replace(/#!\/usr[^\n'",]+/gm, '');
-      str = str.replace(/^\s*\/\/[^\n]+/gm, '');
-
-      file.contents = Buffer.from(str);
-    } catch (err) {
-      err.file = file;
-      console.log('parsing error in: ' + file.path);
-      console.log(err.stack);
+    if (contents) {
+      file.contents = Buffer.from(contents);
     }
   }
 
@@ -725,15 +756,9 @@ class LintDeps extends Base {
    */
 
   isIgnored(patterns, options) {
-    if (patterns == null) {
-      return () => false;
-    }
-    if (typeof patterns === 'string') {
-      patterns = [patterns];
-    }
-    if (patterns.length === 0) {
-      return () => false;
-    }
+    if (!patterns) return () => false;
+    if (typeof patterns === 'string') patterns = [patterns].filter(Boolean);
+    if (patterns.length === 0) return () => false;
     return pico(patterns, options);
   }
 
@@ -761,7 +786,7 @@ class LintDeps extends Base {
     }
 
     this.ignoredDirs = this.ignoredDirs || [];
-    for (let dir of this.ignoredDirs) {
+    for (const dir of this.ignoredDirs) {
       if (startsWith(file.dirname, dir)) {
         return false;
       }
@@ -772,10 +797,11 @@ class LintDeps extends Base {
       return false;
     }
 
-    if (file.extname !== '.js' && file.folder !== 'bin') {
-      return false;
+    if (path.basename(file.path) === 'bin') {
+      return file.extname === '.js' || file.extname === '';
     }
-    return true;
+
+    return file.extname === '.js';
   }
 }
 

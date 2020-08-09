@@ -12,5 +12,5 @@ const c = deps.toFile(new File({ path: 'lib/defaults.js' }));
 const report = deps.lint('devDependencies', [a, b, c]);
 // console.log(report.devDependencies);
 
-const res = deps.why('gulp');
+const res = deps.why('omit-empty');
 console.log(res);

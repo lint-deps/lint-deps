@@ -7,9 +7,20 @@ const tasks = require('../lib/tasks');
 const utils = require('../lib/utils');
 const pkg = require('../package');
 const LintDeps = require('..');
+const nano = arr => arr[0] * 1e9 + arr[1];
+const ms = nano => nano / 1e6;
 
 const ORIGINAL_CWD = process.cwd();
-const cwd = path.dirname(find.sync(process.cwd()));
+const rootDir = find.sync(process.cwd());
+
+if (!rootDir) {
+  throw new Error('Cannot find package.json');
+}
+
+// TODO: prompt to create package.json when it doesn't exist
+const cwd = path.dirname(rootDir);
+const start = process.hrtime();
+
 if (cwd !== ORIGINAL_CWD) {
   process.chdir(cwd);
   process.on('exit', () => process.chdir(ORIGINAL_CWD));
@@ -20,13 +31,9 @@ const argv = require('yargs')
   .option('upgrade', {
     describe: 'Update all deps to the latest version and clear out unused deps.'
   })
-  .option('types', {
-    alias: 't',
-    describe: 'Specify the types of dependencies to lint',
-    default: ['dependencies', 'devDependencies']
-  })
-  .option('why', {
-    describe: 'Show a report that explains why the given module exists in your library. Use npm ls to see where a module exists in your dependency tree.'
+  .option('add', {
+    alias: 'a',
+    describe: 'Add a glob pattern to package.json "lintDeps" config'
   })
   .option('deps', {
     alias: 'd',
@@ -35,6 +42,14 @@ const argv = require('yargs')
   .option('dev', {
     alias: 'e',
     describe: 'Add a glob pattern to package.json "lintDeps" config for "devDependencies" files'
+  })
+  .option('types', {
+    alias: 't',
+    describe: 'Specify the types of dependencies to lint',
+    default: ['dependencies', 'devDependencies']
+  })
+  .option('why', {
+    describe: 'Show a report that explains why the given module exists in your library. Use npm ls to see where a module exists in your dependency tree.'
   })
   .option('update', {
     alias: 'u',
@@ -48,6 +63,11 @@ const argv = require('yargs')
   .alias('help', 'h')
   .argv;
 
+if (argv.why) {
+  argv._.push('why', argv.why);
+  delete argv.why;
+}
+
 /**
  * Instantiate LintDeps and run tasks
  */
@@ -59,7 +79,8 @@ const cli = new LintDeps(argv);
 cli.use(tasks(argv));
 cli.build(argv._.length ? argv._ : ['default'])
   .then(() => {
-    console.log(colors.green(colors.symbols.check), 'done');
+    let total = Number(ms(nano(process.hrtime(start)))).toFixed(0) + 'ms';
+    console.log(colors.green(colors.symbols.check), 'done in', total);
     process.exit();
   })
   .catch(err => {
