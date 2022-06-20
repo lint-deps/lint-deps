@@ -1,16 +1,16 @@
 {
   "extends": [
-    "eslint:recommended",
-    "./package.json"
+    "eslint:recommended"
   ],
 
   "env": {
-    "es6": true,
+    "es2022": true,
     "node": true
   },
 
   "parserOptions": {
-    "ecmaVersion": 9
+    "sourceType": "module",
+    "ecmaVersion": 12
   },
 
   "rules": {
@@ -98,7 +98,7 @@
     "no-unneeded-ternary": [2, { "defaultAssignment": false }],
     "no-unreachable": 2,
     "no-unused-expressions": 2,
-    "no-unused-vars": [2, { "vars": "all", "args": "none" }],
+    "no-unused-vars": [1, { "vars": "all", "args": "none" }],
     "no-useless-call": 2,
     "no-with": 2,
     "object-curly-spacing": ["error", "always", { "objectsInObjects": true }],
